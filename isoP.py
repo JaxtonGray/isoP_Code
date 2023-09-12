@@ -151,9 +151,9 @@ def extract_NARR_timeseries(path,basinName):
     #to read more variables in, put the netCDF file for a monthly mean climate
     #varibale in this folder, add it's name to the .xls file and augment this
     #code to read it in.
-    pathNARR = pathCharm + "\\isoP_Code\\NARR_var_names.xls"
-    varsNARR = pd.read_excel(pathNARR, header= None)
-    numClimatePar = len(varsNARR.index)
+    pathNARR = pathCharm + "\\isoP_Code\\NARR\\NARR_var_names.csv"
+    varsNARR = np.genfromtxt(pathNARR, delimiter=',', encoding='utf-8-sig')
+    numClimatePar = len(varsNARR)
     
     # Read in the WATFLOOD pairs of long/lats (Longitude is in the first column,
     # latitude is in the second column). These were output from read_SHD_file.m
@@ -174,14 +174,12 @@ def extract_NARR_timeseries(path,basinName):
     # NOTE: The NARRlatlon.mat file MUST be in the working directory! Otherwise the code will not run.
     #JG -- This is another instance where the MATLAB features allow this to be done easier, I will find a workaround
     #-- Loading in the NARR lat and lon files
-    latPath = pathCharm + "\\isoP_Code\\" + "NARRlat.csv"
-    lonPath = pathCharm + "\\isoP_Code\\" + "NARRlon.csv" 
-    latDF = pd.read_csv(latPath, header=None) ##Future Note: convert to CSV for accessibility
-    lonDF = pd.read_csv(lonPath, header=None)
+    latPath = pathCharm + "\\isoP_Code\\NARR\\" + "NARRlat.csv"
+    lonPath = pathCharm + "\\isoP_Code\\NARR\\" + "NARRlon.csv" 
 
-    #JG -- Converting the dataframes to arrays and resizing them so we can combine them
-    lat = latDF.to_numpy()
-    lon = lonDF.to_numpy()
+    #JG -- Converting the csv tp arrays and resizing them so we can combine them
+    lat = np.genfromtxt(latPath, delimiter=',', encoding='utf-8-sig')
+    lon = np.genfromtxt(lonPath, delimiter=',', encoding='utf-8-sig')
     gridSize = lat.shape
     latr = np.reshape(lat, (np.size(lat), 1), 'F')
     lonr = np.reshape(lon, (np.size(lon), 1), 'F')
@@ -277,8 +275,7 @@ def extract_NARR_timeseries(path,basinName):
     return output, pathNARR, pathCharm
 
 def NARR_format_timeseries_basin(output, pathNARR, startYear, endYear):
-    varsNARR = pd.read_excel(pathNARR, header=None) ##Future Note: convert to CSV for accessibility
-    varsNARR = varsNARR.to_numpy()
+    varsNARR = np.genfromtxt(pathNARR, delimiter=',', encoding='utf-sig-8')
     numClimatePar = len(varsNARR)
     print("Format NARR Climate Variables and crop dataset to specified year.")
 
@@ -468,7 +465,7 @@ def all_data_format_condense(outputNARR, dataGEO, tele, pathCharm):
     teleStats = []
     NARRStats = []
     for file in files_to_load:
-        path = pathCharm + r'\isoP_Code\\' + file
+        path = pathCharm + r'\isoP_Code\Stats\\' + file
         if 'geo' in file:
             geoStats.append(np.genfromtxt(path, delimiter=',', encoding='utf-8-sig'))
         elif 'iso' in file:
