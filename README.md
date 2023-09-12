@@ -45,4 +45,4 @@ Also, while the python version does currently run with the linear regression mod
 
 It is missing the last function, as I am currently working on a way to implement it in python. I will update this when I have a solution.
 
-
+Finally it is missing the NARR climate variables themselves because they are too large
