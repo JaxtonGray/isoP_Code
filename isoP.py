@@ -869,3 +869,40 @@ def all_data_format_condense(outputNARR, dataGEO, tele, pathCharm):
     
     print("Data has been standardized and condensed into seasons!")
     return dataAllKPN_seas, dataStats
+
+def isoP():
+    path = input("What is the main directory for the model? ")
+    startYear = input("What is the start year for the model? ")
+    endYear = input("What is the end year for the model? ")
+    #Extract the neame of the basin from the path name provided
+    #JG - Struggled with the raw string input, needed this way to list correctly
+    #path = input("What is the main directory for the model? ")
+    splitPath = path.split("\\")
+    basinName = splitPath[-1]
+
+    #Read in the SHD file and create a grid of LAT LONGs for the basin
+    #JG -- Used to create an XLS file in the isoP folder, now creates a CSV
+    WFcoords = readSHD_File(path, basinName)
+
+    #For the specified lat/long pairs, extract the full NARR time series
+    #(currently 1979-2012) at each grid point.
+    output, pathNARR, pathCharm = extract_NARR_timeseries(path, basinName)
+
+    #Format the NARR data to be in the same format as the crop data
+    outputNARR = NARR_format_timeseries_basin(output, pathNARR, startYear, endYear)
+
+    #Extract the elevation and  specify the zones for the KPN, 2Zone, and 1Zone
+    #regionalizations for the specified WATFLOOD grid
+    dataGEO = extract_GIS_info(startYear, endYear, WFcoords, pathCharm)
+
+    #Extract teleconnection indices for the specified period of years
+    tele = extract_tele_timeseries_basin(WFcoords, pathCharm, startYear, endYear)
+
+    #Standaize the data (for model stability), and condense data sources into one cell
+    # for each of the three regionalization
+    dataAllKPN_seas, dataStats = all_data_format_condense(outputNARR, dataGEO, tele, pathCharm)
+
+    #Simulate th kpn data
+    #stackPI, binaryPI = Simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm)
+
+isoP()
