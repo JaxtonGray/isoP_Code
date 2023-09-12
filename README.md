@@ -25,4 +25,6 @@ This program is still in the beginning stages of development. While it does work
 
 Also, while the python version does currently run with the linear regression models that were used in the orignal matlab version, it lacks the same functionality as those models. It loads in CSV files that contain the linear regression coefficients and intercepts, this will be remedied in the future with a better solution.
 
+It is missing the last function, as I am currently working on a way to implement it in python. I will update this when I have a solution.
+
 
