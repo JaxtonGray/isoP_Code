@@ -4,6 +4,7 @@ import pandas as pd
 from scipy.spatial import Delaunay, distance
 import netCDF4 as nc
 import math
+import json
 
 def readSHD_File(path, basinName):
     # JG -- Open SHD file, maybe we can make this more open to SHD files with different names
@@ -867,6 +868,320 @@ def all_data_format_condense(outputNARR, dataGEO, tele, pathCharm):
     print("Data has been standardized and condensed into seasons!")
     return dataAllKPN_seas, dataStats
 
+def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
+    #Unpacking datastats
+    geoStats = dataStats[0]
+    isotopeStats = dataStats[1]
+    teleStats = dataStats[2]
+    NARRStats = dataStats[3]
+    #JG -- Due to the fact that the linear models are presaved in a .mat file in the matlab version I needed a 
+    # different solution for this. I created a json File that contains the coeffecients, intercepts, and the affected 
+    # rows for each model. THis is used to then calculate the prediction. It is not the same as the OG matlab code unfortunatel
+    # and vary from slightly different to very different. Once I have a better solution I will update this.
+   
+    with open(pathCharm + r"\isoP_Code\LinearModels\LinearRegression.json") as f:
+        modelKPN_seas = json.load(f)
+    
+
+    print("Simulate monthly 18Oppt and prediction intervals for the KPN regionalization.")
+    question = "\nWould you like to account for 18Oppt input uncertainty by calculating prediction intervals?\nNOTE: this is a very time consuming, computationally heavy process. Y/N: "
+    checkPI = input(question).lower()
+    
+    if checkPI == "y":
+        binaryPI = 1
+    else:
+        binaryPI = 0
+    
+    #Read in CELL 'data', and then extract the parameter data into annual cells
+    # (one cell for each parameter/variable, 35 in total)
+    numSeas = len(dataAllKPN_seas)
+    numKPN = len(dataAllKPN_seas[0])
+    #Initializing
+    allData_Stack = [[] for i in range(numSeas)]
+    kpnCol = [[] for i in range(numSeas)]
+    kpnDiff = [[] for i in range(numSeas)]
+    indexKpn = [[] for i in range(numSeas)]
+
+    for i in range(numSeas):
+        for j in range(numKPN):
+            if len(dataAllKPN_seas[i][j]) > 0:
+                if len(allData_Stack[i]) == 0:
+                    allData_Stack[i] = dataAllKPN_seas[i][j]
+                else:
+                    allData_Stack[i] = np.vstack((allData_Stack[i], dataAllKPN_seas[i][j]))
+            else:
+                continue
+        
+        #Separate the data into grids (i.e. each cell index is a new grid)
+        allData_Stack[i] = allData_Stack[i][allData_Stack[i][:, 0].argsort(kind = 'mergesort')]
+        insertKPN = np.array(allData_Stack[i][0,0])
+        kpnCol[i] = np.append(insertKPN, allData_Stack[i][:, 0])
+        kpnLength = len(kpnCol[i])
+        kpnDiff[i] = allData_Stack[i][:,0] - kpnCol[i][:kpnLength-1]
+        indexKpn[i]=np.argwhere(kpnDiff[i]) #Ran into issue here
+        numPts = np.array(len(allData_Stack[i]))
+        indexKpn[i] = np.append(indexKpn[i], numPts)
+        numIndex = len(indexKpn[i])
+    
+    #Initializing the grids for the variables
+    allKPN_Grids = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    month = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    year = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    lat = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    lon = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    alt = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    apcp = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    cape = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    cdcon = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    cdlyr = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    evap = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    hcdc = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    hbpl = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    mcdc = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    prwtr = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    rhum_2m = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    uwnd_10m = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    vwnd_10m = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    wcconv = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    wcvflx = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    amo = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    ao = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    nao = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    pdo = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    pna = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    soi = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    kpnZone = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    kpnID = np.zeros((4, numIndex))
+    sinVar = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    cosVar = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    xKPN = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    xKPN2 = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    pi = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    stackPI = [[] for i in range(numIndex)]
+
+    print("Preparing Model Inputs")
+
+    for i in range(numSeas):
+        for m in range(numIndex):
+            if m == 0:
+                if m != numIndex-1:
+                    allKPN_Grids[i][m] = allData_Stack[i][:indexKpn[i][m], :]
+                else:
+                    allKPN_Grids[i][m] = allData_Stack[i][:, :]
+            else:
+                if m != numIndex-1:
+                    allKPN_Grids[i][m] = allData_Stack[i][indexKpn[i][m-1]:indexKpn[i][m], :]
+                else:
+                    allKPN_Grids[i][m] = allData_Stack[i][indexKpn[i][m-1]:, :]
+            
+            month[i][m] = allKPN_Grids[i][m][:, 1]
+            year[i][m] = allKPN_Grids[i][m][:, 2]
+            lat[i][m] = allKPN_Grids[i][m][:, 3]
+            lon[i][m] = allKPN_Grids[i][m][:, 4]
+            alt[i][m] = allKPN_Grids[i][m][:, 5]
+            #acpcp is unused ???
+            #air2m is unused ???
+            apcp[i][m] = allKPN_Grids[i][m][:, 8]
+            cape[i][m] = allKPN_Grids[i][m][:, 9]
+            cdcon[i][m] = allKPN_Grids[i][m][:, 10]
+            cdlyr[i][m] = allKPN_Grids[i][m][:, 11]
+            evap[i][m] = allKPN_Grids[i][m][:, 12]
+            hcdc[i][m] = allKPN_Grids[i][m][:, 13]
+            #hgt_tropo unused ???
+            hbpl[i][m] = allKPN_Grids[i][m][:, 15]
+            #lcdc unused ???
+            mcdc[i][m] = allKPN_Grids[i][m][:, 17]
+            #pres_topo unused ???
+            prwtr[i][m] = allKPN_Grids[i][m][:, 19]
+            rhum_2m[i][m] = allKPN_Grids[i][m][:, 20]
+            #tcdc unused ???
+            uwnd_10m[i][m] = allKPN_Grids[i][m][:, 22]
+            vwnd_10m[i][m] = allKPN_Grids[i][m][:, 23]
+            wcconv[i][m] = allKPN_Grids[i][m][:, 24]
+            wcvflx[i][m] = allKPN_Grids[i][m][:, 25]
+            amo[i][m] = allKPN_Grids[i][m][:, 26]
+            ao[i][m] = allKPN_Grids[i][m][:, 27]
+            nao[i][m] = allKPN_Grids[i][m][:, 28]
+            pdo[i][m] = allKPN_Grids[i][m][:, 29]
+            pna[i][m] = allKPN_Grids[i][m][:, 30]
+            soi[i][m] = allKPN_Grids[i][m][:, 31]
+            kpnZone[i][m] = allKPN_Grids[i][m][:, 32]
+            sinVar[i][m] = np.sin(2*np.pi*(allKPN_Grids[i][m][:, 1]-1)/12)
+            cosVar[i][m] = np.cos(2*np.pi*(allKPN_Grids[i][m][:, 1]-1)/12)
+    
+    #Before starting the simulation, must separate the variables that the KPN model
+    # uses from the dataALL_cell
+
+    for m in range(numIndex):
+        rows = len(allKPN_Grids[0][m])
+        if kpnZone[0][m][0] == 35:
+            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows), lat[0][m][:], alt[0][m][:])))
+            xKPN[0][m] = np.transpose(np.vstack((sinVar[0][m][:], cosVar[0][m][:], apcp[0][m][:],\
+                                    cape[0][m][:], cdcon[0][m][:], cdlyr[0][m][:], evap[0][m][:],\
+                                    hcdc[0][m][:], hbpl[0][m][:], mcdc[0][m][:], prwtr[0][m][:],\
+                                    rhum_2m[0][m][:], uwnd_10m[0][m][:], vwnd_10m[0][m][:],\
+                                    wcconv[0][m][:], wcvflx[0][m][:], amo[0][m][:],\
+                                    ao[0][m][:], nao[0][m][:], pdo[0][m][:],\
+                                    pna[0][m][:], soi[0][m][:], lat[0][m][:], lon[0][m][:], alt[0][m][:])))
+            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows), sinVar[1][m][:], cosVar[1][m][:], lon[1][m][:])))
+            xKPN[1][m] = np.transpose(np.vstack((sinVar[1][m][:], cosVar[1][m][:], lon[1][m][:])))
+            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows), hbpl[2][m][:], mcdc[2][m][:], wcvflx[2][m][:])))
+            xKPN[2][m] = np.transpose(np.vstack((sinVar[2][m][:], cosVar[2][m][:], apcp[2][m][:],\
+                                    cape[2][m][:], cdcon[2][m][:], cdlyr[2][m][:], evap[2][m][:],\
+                                    hcdc[2][m][:], hbpl[2][m][:], mcdc[2][m][:], prwtr[2][m][:],\
+                                    rhum_2m[2][m][:], uwnd_10m[2][m][:], vwnd_10m[2][m][:],\
+                                    wcconv[2][m][:], wcvflx[2][m][:], amo[2][m][:],\
+                                    ao[2][m][:], nao[2][m][:], pdo[2][m][:],\
+                                    pna[2][m][:], soi[2][m][:], lat[2][m][:], lon[2][m][:], alt[2][m][:])))
+            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows), prwtr[3][m][:], wcvflx[3][m][:], lat[3][m][:], alt[3][m][:])))
+            xKPN[3][m] = np.transpose(np.vstack((sinVar[3][m][:], cosVar[3][m][:], apcp[3][m][:], cape[3][m][:],\
+                                    cdcon[3][m][:], cdlyr[3][m][:], evap[3][m][:], hcdc[3][m][:],\
+                                    hbpl[3][m][:], mcdc[3][m][:], prwtr[3][m][:], rhum_2m[3][m][:],\
+                                    uwnd_10m[3][m][:], vwnd_10m[3][m][:], wcconv[3][m][:],\
+                                    wcvflx[3][m][:], amo[3][m][:], ao[3][m][:], nao[3][m][:],\
+                                    pdo[3][m][:], pna[3][m][:], soi[3][m][:], lat[3][m][:],\
+                                    lon[3][m][:], alt[3][m][:])))
+            kpnID[0:3, m] = 1
+        elif kpnZone[0][m][0] == 42:
+            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows), sinVar[0][m][:], cosVar[0][m][:], cdlyr[0][m][:],\
+                                    hbpl[0][m][:], prwtr[0][m][:], lon[0][m][:])))
+            xKPN[0][m] = np.transpose(np.vstack((sinVar[0][m][:], cosVar[0][m][:], cdlyr[0][m][:], hbpl[0][m][:],\
+                                    prwtr[0][m][:], lon[0][m][:])))
+            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows), mcdc[1][m][:], prwtr[1][m][:], rhum_2m[1][m][:],\
+                                    lat[1][m][:], lon[1][m][:], (lat[1][m][:]*lon[1][m][:]))))
+            xKPN[1][m] = np.transpose(np.vstack((sinVar[1][m][:], cosVar[1][m][:], apcp[1][m][:], cape[1][m][:],\
+                                    cdcon[1][m][:], cdlyr[1][m][:], evap[1][m][:], hcdc[1][m][:],\
+                                    hbpl[1][m][:], mcdc[1][m][:], prwtr[1][m][:], rhum_2m[1][m][:],\
+                                    uwnd_10m[1][m][:], vwnd_10m[1][m][:], wcconv[1][m][:],\
+                                    wcvflx[1][m][:], amo[1][m][:], ao[1][m][:], nao[1][m][:],\
+                                    pdo[1][m][:], pna[1][m][:], soi[1][m][:], lat[1][m][:],\
+                                    lon[1][m][:], alt[1][m][:])))
+            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows), mcdc[2][m][:], prwtr[2][m][:], uwnd_10m[2][m][:],\
+                                    vwnd_10m[2][m][:], lat[2][m][:], lon[2][m][:], (mcdc[2][m][:]*uwnd_10m[2][m][:]),\
+                                    (mcdc[2][m][:]*lon[2][m][:]), lat[2][m][:]*lon[2][m][:])))
+            xKPN[2][m] = np.transpose(np.vstack((sinVar[2][m][:], cosVar[2][m][:], apcp[2][m][:], cape[2][m][:],\
+                                    cdcon[2][m][:], cdlyr[2][m][:], evap[2][m][:], hcdc[2][m][:],\
+                                    hbpl[2][m][:], mcdc[2][m][:], prwtr[2][m][:], rhum_2m[2][m][:],\
+                                    uwnd_10m[2][m][:], vwnd_10m[2][m][:], wcconv[2][m][:],\
+                                    wcvflx[2][m][:], amo[2][m][:], ao[2][m][:], nao[2][m][:],\
+                                    pdo[2][m][:], pna[2][m][:], soi[2][m][:], lat[2][m][:],\
+                                    lon[2][m][:], alt[2][m][:])))
+            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows), mcdc[3][m][:], prwtr[3][m][:], rhum_2m[3][m][:],\
+                                    pdo[3][m][:], lat[3][m][:], lon[3][m][:], (cape[3][m][:]*prwtr[3][m][:]),\
+                                    (cape[3][m][:]*lon[3][m][:]), (mcdc[3][m][:]*lat[3][m][:]),\
+                                    (prwtr[3][m][:]*rhum_2m[3][m][:]), (prwtr[3][m][:])**2)))
+            xKPN[3][m] = np.transpose(np.vstack((mcdc[3][m][:], prwtr[3][m][:], rhum_2m[3][m][:], pdo[3][m][:],\
+                                    lat[3][m][:], lon[3][m][:], (cape[3][m][:]*prwtr[3][m][:]),\
+                                    (cape[3][m][:]*lon[3][m][:]), (mcdc[3][m][:]*lat[3][m][:]),\
+                                    (prwtr[3][m][:]*rhum_2m[3][m][:]), (prwtr[3][m][:])**2)))
+            kpnID[0:3, m] = 2
+        elif kpnZone[0][m][0] == 43:
+            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows), evap[0][m][:], prwtr[0][m][:], nao[0][m][:], pdo[0][m][:],\
+                                    lon[0][m][:], (lon[0][m][:])**2)))
+            xKPN[0][m] = np.transpose(np.vstack((sinVar[0][m][:], cosVar[0][m][:], apcp[0][m][:], cape[0][m][:],\
+                                    cdcon[0][m][:], cdlyr[0][m][:], evap[0][m][:], hcdc[0][m][:],\
+                                    hbpl[0][m][:], mcdc[0][m][:], prwtr[0][m][:], rhum_2m[0][m][:],\
+                                    uwnd_10m[0][m][:], vwnd_10m[0][m][:], wcconv[0][m][:], wcvflx[0][m][:],\
+                                    amo[0][m][:], ao[0][m][:], nao[0][m][:], pdo[0][m][:], pna[0][m][:],\
+                                    soi[0][m][:], lat[0][m][:], lon[0][m][:], alt[0][m][:])))
+            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows), mcdc[1][m][:], prwtr[1][m][:], pna[1][m][:],\
+                                    lat[1][m][:], alt[1][m][:], (evap[1][m][:]*alt[1][m][:]),\
+                                    (prwtr[1][m][:]*alt[1][m][:]), (lat[1][m][:]*alt[1][m][:]), (alt[1][m][:])**2)))
+            xKPN[1][m] = np.transpose(np.vstack((mcdc[1][m][:], prwtr[1][m][:], pna[1][m][:], lat[1][m][:],\
+                                    alt[1][m][:], (evap[1][m][:]*alt[1][m][:]), (prwtr[1][m][:]*alt[1][m][:]),\
+                                    (lat[1][m][:]*alt[1][m][:]), (alt[1][m][:])**2)))
+            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows), apcp[2][m][:], vwnd_10m[2][m][:], lat[2][m][:], lon[2][m][:])))
+            xKPN[2][m] = np.transpose(np.vstack((sinVar[2][m][:], cosVar[2][m][:], apcp[2][m][:], cape[2][m][:],\
+                                    cdcon[2][m][:], cdlyr[2][m][:], evap[2][m][:], hcdc[2][m][:],\
+                                    hbpl[2][m][:], mcdc[2][m][:], prwtr[2][m][:], rhum_2m[2][m][:],\
+                                    uwnd_10m[2][m][:], vwnd_10m[2][m][:], wcconv[2][m][:], wcvflx[2][m][:],\
+                                    amo[2][m][:], ao[2][m][:], nao[2][m][:], pdo[2][m][:], pna[2][m][:],\
+                                    soi[2][m][:], lat[2][m][:], lon[2][m][:], alt[2][m][:])))
+            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows), mcdc[3][m][:], prwtr[3][m][:], uwnd_10m[3][m][:],\
+                                    amo[3][m][:], lat[3][m][:], (mcdc[3][m][:])**2)))
+            xKPN[3][m] = np.transpose(np.vstack((sinVar[3][m][:], cosVar[3][m][:], apcp[3][m][:], cape[3][m][:],\
+                                    cdcon[3][m][:], cdlyr[3][m][:], evap[3][m][:], hcdc[3][m][:],\
+                                    hbpl[3][m][:], mcdc[3][m][:], prwtr[3][m][:], rhum_2m[3][m][:],\
+                                    uwnd_10m[3][m][:], vwnd_10m[3][m][:], wcconv[3][m][:], wcvflx[3][m][:],\
+                                    amo[3][m][:], ao[3][m][:], nao[3][m][:], pdo[3][m][:], pna[3][m][:],\
+                                    soi[3][m][:], lat[3][m][:], lon[3][m][:], alt[3][m][:])))
+            kpnID[0:3, m] = 3
+        elif kpnZone[0][m][0] == 47:
+            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows), sinVar[0][m][:], cosVar[0][m][:])))
+            xKPN[0][m] = np.transpose(np.vstack((sinVar[0][m][:], cosVar[0][m][:])))
+            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows), sinVar[1][m][:], cosVar[1][m][:])))
+            xKPN[1][m] = np.transpose(np.vstack((sinVar[1][m][:], cosVar[1][m][:])))
+            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows), sinVar[2][m][:], cosVar[2][m][:])))
+            xKPN[2][m] = np.transpose(np.vstack((sinVar[2][m][:], cosVar[2][m][:])))
+            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows), sinVar[3][m][:], cosVar[3][m][:])))
+            xKPN[3][m] = np.transpose(np.vstack((sinVar[3][m][:], cosVar[3][m][:])))
+            kpnID[0:3, m] = 4
+        elif kpnZone[0][m][0] == 62:
+            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows), sinVar[0][m][:], cosVar[0][m][:], mcdc[0][m][:], prwtr[0][m][:], lon[0,m][:,0])))
+            xKPN[0][m] = np.transpose(np.vstack((sinVar[0][m][:], cosVar[0][m][:], mcdc[0][m][:], prwtr[0][m][:], lon[0,m][:,0])))
+            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows), sinVar[1][m][:], cosVar[1][m][:], prwtr[1][m][:], ao[1][m][:])))
+            xKPN[1][m] = np.transpose(np.vstack((sinVar[1][m][:], cosVar[1][m][:], prwtr[1][m][:], ao[1][m][:])))
+            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows), prwtr[2][m][:], vwnd_10m[2][m][:])))
+            xKPN[2][m] = np.transpose(np.vstack((sinVar[2][m][:], cosVar[2][m][:], apcp[2][m][:], cape[2][m][:], cdcon[2][m][:],\
+                                   cdlyr[2][m][:], evap[2][m][:], hcdc[2][m][:], hbpl[2][m][:], mcdc[2][m][:],\
+                                    prwtr[2][m][:], rhum_2m[2][m][:], uwnd_10m[2][m][:], vwnd_10m[2][m][:],\
+                                    wcconv[2][m][:], wcvflx[2][m][:], amo[2][m][:], ao[2][m][:], nao[2][m][:],\
+                                    pdo[2][m][:], pna[2][m][:], soi[2][m][:], lat[2][m][:], lon[2][m][:], alt[2][m][:])))
+            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows), mcdc[3][m][:], prwtr[3][m][:], lat[3][m][:])))
+            xKPN[3][m] = np.transpose(np.vstack((mcdc[3][m][:], prwtr[3][m][:], lat[3][m][:])))
+            kpnID[0:3, m] = 5
+    print("Simulating monthly 18Oppt!")
+
+    ypred_std_KPN = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    if checkPI == 'y': #Currently skipping this section will develop at a later point
+        #numR is the number of iterations (typically 1000 is enough) and alpha is the significance level
+        # these can be changed if required
+        numR = 1000
+        alpha = 0.05
+        indexUp = numR * (1-alpha)
+        indexDown = numR * alpha
+
+        for season in range(numSeas):
+            for gridNum in range(numIndex):
+                numX, numVar = np.shape(xKPN[season][gridNum])
+                model = modelKPN_seas[season][int(kpnID[season][gridNum]-1)]
+                print("Not finished development yet")
+    else:
+        for season in range(numSeas):
+            for gridNum in range(numIndex):
+                numX = np.shape(xKPN[season][gridNum])[0]
+                modelNum =  "LM" + str(season*5+int(kpnID[season][gridNum]-1) + 1)
+                model = modelKPN_seas[modelNum]
+                rowArray = np.zeros((numX, 1))
+                for row in range(numX):
+                    xValue = 0
+                    for col, coeff in model.items():
+                        if col == "Intercept":
+                            xValue += coeff
+                        elif len(col.split(',')) == 2 and col.split(',')[0] == col.split(',')[1]:
+                            xValue += coeff * xKPN[season][gridNum][row, int(col.split(',')[0])]
+                        elif len(col.split(',')) == 2 and col.split(',')[0] == col.split(',')[1]:
+                            xValue += coeff * xKPN[season][gridNum][row, int(col.split(',')[0])] * xKPN[season][gridNum][row, int(col.split(',')[1])]
+                        else:
+                            xValue += coeff * xKPN[season][gridNum][row, int(col)]
+                    rowArray[row] = xValue
+                ypred_std_KPN[season][gridNum] = rowArray
+
+                colOne = month[season][gridNum]
+                colTwo = year[season][gridNum]
+                colThree = np.multiply(ypred_std_KPN[season][gridNum], isotopeStats[1][0, season]) + isotopeStats[0][0, season]
+                colFour = np.full(colOne.shape[0], gridNum+1)
+                
+                pi[season][gridNum] = np.column_stack((colOne, colTwo, colThree[:, 0], colFour))
+    
+    #Stacking the PI's into a single array then sorting based on month and year
+    for m in range(numIndex):
+        stackPI[m] = np.vstack((pi[0][m], pi[1][m], pi[2][m], pi[3][m]))
+        stackPI[m] = stackPI[m][stackPI[m][:, 1].argsort(kind = 'mergesort')]
+        stackPI[m] = stackPI[m][stackPI[m][:, 0].argsort(kind = 'mergesort')]
+
+    print("Time series 18Oppt for the KPN regionalization has been simulated. YAY!")
+
 def isoP():
     path = input("What is the main directory for the model? ")
     startYear = input("What is the start year for the model? ")
@@ -900,6 +1215,6 @@ def isoP():
     dataAllKPN_seas, dataStats = all_data_format_condense(outputNARR, dataGEO, tele, pathCharm)
 
     #Simulate th kpn data
-    #stackPI, binaryPI = Simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm)
+    stackPI, binaryPI = simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm)
 
 isoP()
