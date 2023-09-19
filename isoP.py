@@ -152,8 +152,8 @@ def extract_NARR_timeseries(path,basinName):
     #to read more variables in, put the netCDF file for a monthly mean climate
     #varibale in this folder, add it's name to the .xls file and augment this
     #code to read it in.
-    pathNARR = pathCharm + "\\isoP_Code\\NARR\\NARR_var_names.csv"
-    varsNARR = np.genfromtxt(pathNARR, delimiter=',', encoding='utf-8-sig')
+    pathNARR = path + "\\isoP_Code\\NARR\\NARR_var_names.csv"
+    varsNARR = pd.read_csv(pathNARR, header=None)
     numClimatePar = len(varsNARR)
     
     # Read in the WATFLOOD pairs of long/lats (Longitude is in the first column,
@@ -175,8 +175,8 @@ def extract_NARR_timeseries(path,basinName):
     # NOTE: The NARRlatlon.mat file MUST be in the working directory! Otherwise the code will not run.
     #JG -- This is another instance where the MATLAB features allow this to be done easier, I will find a workaround
     #-- Loading in the NARR lat and lon files
-    latPath = pathCharm + "\\isoP_Code\\NARR\\" + "NARRlat.csv"
-    lonPath = pathCharm + "\\isoP_Code\\NARR\\" + "NARRlon.csv" 
+    latPath = path + "\\isoP_Code\\NARR\\" + "NARRlat.csv"
+    lonPath = path + "\\isoP_Code\\NARR\\" + "NARRlon.csv" 
 
     #JG -- Converting the csv tp arrays and resizing them so we can combine them
     lat = np.genfromtxt(latPath, delimiter=',', encoding='utf-8-sig')
@@ -195,15 +195,15 @@ def extract_NARR_timeseries(path,basinName):
         dist = distance.cdist(delaunayTri.points, np.array([coord]))
         K[j] = np.argmin(dist) + 1
         gridNo = [K[j] % gridSize[0], (K[j] // gridSize[0])+1]
-        xy_NARR[j, 0] = gridNo[1]
-        xy_NARR[j, 1] = gridNo[0] 
+        xy_NARR[j, 0] = gridNo[1][0]
+        xy_NARR[j, 1] = gridNo[0][0] 
     # This loop will cycle through all of the NARR datafiles (ie. one loop for each climate variable)
     # whose names were in the spreadsheet previously read.
     print("Reading in NARR climate variables!")
     output = [[] for _ in range(numClimatePar)]
     for i in range(numClimatePar):
         filetmp = varsNARR.iloc[i, 0]
-        ncid = nc.Dataset(filetmp, 'r')
+        ncid = nc.Dataset("ClimateVariables\\" + filetmp, 'r')
         # Depending on which NARR climate variable is being extracted, time (as well as other parts of the data) will
         # be stored in a different dimension of the netCDF file. This portion of
         # code extracts the time variable from the netCDF files, specifying the
@@ -276,7 +276,8 @@ def extract_NARR_timeseries(path,basinName):
     return output, pathNARR, pathCharm
 
 def NARR_format_timeseries_basin(output, pathNARR, startYear, endYear):
-    varsNARR = np.genfromtxt(pathNARR, delimiter=',', encoding='utf-sig-8')
+    varsNARR = pd.read_csv(pathNARR, header=None)
+    varsNARR = varsNARR.to_numpy()
     numClimatePar = len(varsNARR)
     print("Format NARR Climate Variables and crop dataset to specified year.")
 
@@ -457,7 +458,7 @@ def extract_tele_timeseries_basin(WFcoords, pathCharm, startYear, endYear):
 
     return tele
 
-def all_data_format_condense(outputNARR, dataGEO, tele, pathCharm):
+def all_data_format_condense(outputNARR, dataGEO, tele, path):
     #JG -- These arrays are all loaded atonce in matlab, a feature which does not translate to python
     #    I have split them up into their respective files and loaded them in individually.
     files_to_load = ['geoStatsA.csv', 'geoStatsB.csv', 'isotopeStatsA.csv', 'isotopeStatsB.csv', 'teleStatsA.csv', 'teleStatsB.csv', 'NARRStatsA.csv', 'NARRStatsB.csv']
@@ -466,15 +467,15 @@ def all_data_format_condense(outputNARR, dataGEO, tele, pathCharm):
     teleStats = []
     NARRStats = []
     for file in files_to_load:
-        path = pathCharm + r'\isoP_Code\Stats\\' + file
+        pathFile = path + r"\isoP_Code\Stats\\" + file
         if 'geo' in file:
-            geoStats.append(np.genfromtxt(path, delimiter=',', encoding='utf-8-sig'))
+            geoStats.append(np.genfromtxt(pathFile, delimiter=',', encoding='utf-8-sig'))
         elif 'iso' in file:
-            isotopeStats.append(np.genfromtxt(path, delimiter=',', encoding='utf-8-sig'))
+            isotopeStats.append(np.genfromtxt(pathFile, delimiter=',', encoding='utf-8-sig'))
         elif 'tele' in file:
-            teleStats.append(np.genfromtxt(path, delimiter=',', encoding='utf-8-sig'))
+            teleStats.append(np.genfromtxt(pathFile, delimiter=',', encoding='utf-8-sig'))
         elif 'NARR' in file:
-            NARRStats.append(np.genfromtxt(path, delimiter=',', encoding='utf-8-sig'))
+            NARRStats.append(np.genfromtxt(pathFile, delimiter=',', encoding='utf-8-sig'))
     dataStats = [geoStats, isotopeStats, teleStats, NARRStats]
     #JG -- These are the same as the matlab code, but I have changed the names to be more pythonic
     #    I have also changed the way the data is stored, instead of cell arrays, it is a list of arrays
@@ -1181,11 +1182,12 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
         stackPI[m] = stackPI[m][stackPI[m][:, 0].argsort(kind = 'mergesort')]
 
     print("Time series 18Oppt for the KPN regionalization has been simulated. YAY!")
+    return stackPI, binaryPI
 
 def isoP():
     path = input("What is the main directory for the model? ")
-    startYear = input("What is the start year for the model? ")
-    endYear = input("What is the end year for the model? ")
+    startYear = int(input("What is the start year for the model? "))
+    endYear = int(input("What is the end year for the model? "))
     #Extract the neame of the basin from the path name provided
     #JG - Struggled with the raw string input, needed this way to list correctly
     #path = input("What is the main directory for the model? ")
@@ -1212,7 +1214,7 @@ def isoP():
 
     #Standaize the data (for model stability), and condense data sources into one cell
     # for each of the three regionalization
-    dataAllKPN_seas, dataStats = all_data_format_condense(outputNARR, dataGEO, tele, pathCharm)
+    dataAllKPN_seas, dataStats = all_data_format_condense(outputNARR, dataGEO, tele, path)
 
     #Simulate th kpn data
     stackPI, binaryPI = simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm)
