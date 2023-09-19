@@ -9,12 +9,13 @@ In order to run isoP you need to make sure you have downloaded python 3.10 or hi
 * pandas
 * netCDF4
 * scipy
+* json
 
 You can do this by loading up the command prompt and typing the following for each package:
 ```
 pip install [package name]
 ```
-Afterwards you will need to clone this repository to your system. You can place the folder where you like, but I suggest placing it in the same folder as the main basin directory. This is because you will need to enter the path to the main basin directory when you run the program.
+Afterwards you will need to clone this repository to your system. You must place the folder in the main basin directory. This is because you will need to enter the path to the main basin directory when you run the program.
 
 ## How to use
 Once the correct packages have been installed as well as python, you have two options for running it:
@@ -38,6 +39,12 @@ After you have done either of these you will be prompted to enter the following:
 
 Keep an eye out for more prompts that may appear later.
 
+**Note** about the following prompt: 
+> "Would you like to account for 18Oppt input uncertainty by calculating prediction intervals? 
+NOTE: this is a very time consuming, computationally heavy 
+> process. Y/N: "
+
+This pompt **MUST** be answered with a no or n as of this moment. This is because the function has not been finished yet for that part of the program.
 # WARNING
 This program is still in the beginning stages of development. While it does work it is worth noting that it is not capable of working with UTM coordinates as of yet, so please ensure that you are using latitude and longitude coordinates.
 
