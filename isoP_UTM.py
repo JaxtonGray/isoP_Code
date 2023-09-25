@@ -1,2 +1,4 @@
-from isoP import *
+import isoP as iso
 from utm import *
+
+### This scipt will 
