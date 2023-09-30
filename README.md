@@ -10,6 +10,8 @@ In order to run isoP you need to make sure you have downloaded python 3.10 or hi
 * netCDF4
 * scipy
 * json
+* os
+* requests
 
 You can do this by loading up the command prompt and typing the following for each package:
 ```
@@ -18,24 +20,15 @@ pip install [package name]
 Afterwards you will need to clone this repository to your system. You must place the folder in the main basin directory. This is because you will need to enter the path to the main basin directory when you run the program.
 
 ## How to use
-Once the correct packages have been installed as well as python, you have two options for running it:
-1. Your favourite IDE
-2. Command prompt
+### Downloadoing the climate variables from NARR
+Once the correct packages have been installed as well as python, you must first download the climate variables from this [NARR website](https://downloads.psl.noaa.gov/Datasets/NARR/Monthlies/monolevel/). To do this you will need to first run the program *NARR_variables_download.py* located in the NARR directory. This will download the climate variables from the website and place them in a new directory called ClimateVariables. This directory will be located in the isoP_Code directory. This process may take a while depending on your internet connection.
 
-### IDE
-Open the folder containg the isoP file inside the IDE, from the command prompt type:
-```
-isoP.py
-```
-### Command prompt
-Open the command prompt and navigate to the folder containing the isoP file. Type the following:
-```
-python isoP.py
-```
-After you have done either of these you will be prompted to enter the following:
-* The path to the main basin directory
-* The start year
-* The end year
+### Running the isoP program
+Once all the climate variables have been downloaded you can run the isoP program. The isoP program is located in the isoP_Code directory and is called *isoP.py*. Run the program, you will be prompted by the following:
+ 1. Please enter the path to the main basin directory
+ 2. Start year for the program
+ 3. End year for the program
+
 
 Keep an eye out for more prompts that may appear later.
 
