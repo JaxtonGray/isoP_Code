@@ -4,15 +4,17 @@ import pandas as pd
 from scipy.spatial import Delaunay, distance
 import netCDF4 as nc
 import math
+from os import getcwd, mkdir
+import requests
 import json
+from datetime import datetime
 
 def readSHD_File(path, basinName):
-    # JG -- Open SHD file, maybe we can make this more open to SHD files with different names
     # Converts file into a line by line list
     pathSHD = path + r"\basin" + "\\" + basinName + r"_shd.r2c"
     shdFile = open(pathSHD, "r")
     shdList = shdFile.readlines()
-
+    shdFile.close()
     # JG -- We create an index containing the line # of the SHD file that has 
     # the specific info we need
     info = []
@@ -112,7 +114,7 @@ def readSHD_File(path, basinName):
 
     return WFcoords
 
-def extract_NARR_timeseries(path,basinName):
+def extract_NARR_timeseries(cwd, path, basinName):
     #################################################################
     # This program reads in an array of lat/long coordinates (I.e the
     # basin_coords.xls file previously output by read_SHD_file.m)
@@ -138,12 +140,12 @@ def extract_NARR_timeseries(path,basinName):
     #From the path name input by the user, backtrack to the main SPL directory
     #to access the isoP_MAIN folder where the NARR netCDF files are stored.
         #JG -- is the main intent with this section of the code just to go back by one 
-    splitPath = path.split("\\")
-    for i in range(0, len(splitPath)-1):
-        if i == 0:
-            pathCharm = splitPath[0]
-        else:
-            pathCharm = pathCharm + "\\" + splitPath[i]
+    #splitPath = path.split("\\")
+    #for i in range(0, len(splitPath)-1):
+    #    if i == 0:
+    #        pathCharm = splitPath[0]
+    #    else:
+    #        pathCharm = pathCharm + "\\" + splitPath[i]
     
     #Read in the .xls file called 'NARR_var_names' which is stored in the
     #isoP_MAIN\Code folder. This file is a list of all the NARR climate
@@ -152,7 +154,7 @@ def extract_NARR_timeseries(path,basinName):
     #to read more variables in, put the netCDF file for a monthly mean climate
     #varibale in this folder, add it's name to the .xls file and augment this
     #code to read it in.
-    pathNARR = path + "\\isoP_Code\\NARR\\NARR_var_names.csv"
+    pathNARR = cwd + "\\NARR\\NARR_var_names.csv"
     varsNARR = pd.read_csv(pathNARR, header=None)
     numClimatePar = len(varsNARR)
     
@@ -175,10 +177,10 @@ def extract_NARR_timeseries(path,basinName):
     # NOTE: The NARRlatlon.mat file MUST be in the working directory! Otherwise the code will not run.
     #JG -- This is another instance where the MATLAB features allow this to be done easier, I will find a workaround
     #-- Loading in the NARR lat and lon files
-    latPath = path + "\\isoP_Code\\NARR\\" + "NARRlat.csv"
-    lonPath = path + "\\isoP_Code\\NARR\\" + "NARRlon.csv" 
+    latPath = cwd + "\\NARR\\" + "NARRlat.csv"
+    lonPath = cwd + "\\NARR\\" + "NARRlon.csv" 
 
-    #JG -- Converting the csv tp arrays and resizing them so we can combine them
+    #JG -- Converting the csv to arrays and resizing them so we can combine them
     lat = np.genfromtxt(latPath, delimiter=',', encoding='utf-8-sig')
     lon = np.genfromtxt(lonPath, delimiter=',', encoding='utf-8-sig')
     gridSize = lat.shape
@@ -191,7 +193,7 @@ def extract_NARR_timeseries(path,basinName):
     K = np.zeros((numPts, 1)) #Initialize empty array to hold indices
     xy_NARR = np.zeros((numPts, 2)) #Initialize empty array to hold NN lat lon pairs
     for j in range(numPts):
-        coord = WFcoords.iloc[j, :]
+        coord = WFcoords.iloc[j, :].astype(float)
         dist = distance.cdist(delaunayTri.points, np.array([coord]))
         K[j] = np.argmin(dist) + 1
         gridNo = [K[j] % gridSize[0], (K[j] // gridSize[0])+1]
@@ -273,7 +275,7 @@ def extract_NARR_timeseries(path,basinName):
     print("NARR climate variables successfully read in for specified WATFLOOD grids!")
     #JG --The final output is off by enough decimals that I am unconfident, however it runs so that will have to wait
     #I beleive the reason for this is likely that the information I am pulling from the netCDF file is different than the matlab version
-    return output, pathNARR, pathCharm
+    return output, pathNARR, #pathCharm
 
 def NARR_format_timeseries_basin(output, pathNARR, startYear, endYear):
     varsNARR = pd.read_csv(pathNARR, header=None)
@@ -354,7 +356,7 @@ def NARR_format_timeseries_basin(output, pathNARR, startYear, endYear):
     print("NARR files successfully formatted for specified WATFLOOD grids!")
     return outputNARR
 
-def extract_GIS_info(startYear, endYear, WFcoords, pathCharm):
+def extract_GIS_info(startYear, endYear, WFcoords, cwd):
     #JG -- Extracting the Lat/Longs from the WFcoords
     numGrids = len(WFcoords)
     lat = WFcoords[:,0]
@@ -362,7 +364,7 @@ def extract_GIS_info(startYear, endYear, WFcoords, pathCharm):
 
     #Read in DEM for Canada/Northern Tier of the United States
     print("Extracting GIS information: Elevation, KPN zone indicator.")
-    pathDEM = pathCharm + '\\isoP_Code\\DEM_CAD.csv'
+    pathDEM = cwd + '\\ModelData\\DEM_CAD.csv'
     dem = np.genfromtxt(pathDEM, delimiter=',', skip_header=1)
     latDEM = dem[:,0]
     lonDEM = dem[:,1]
@@ -385,7 +387,7 @@ def extract_GIS_info(startYear, endYear, WFcoords, pathCharm):
         demBasin[j,:] = np.hstack((WFcoords[j,:], altDEM[int(k[j])]))
     
     #Based on the 1020 shapefile for Canada/northern US, read in Kpn Zone
-    pathKPN = pathCharm + r'\isoP_Code\Kpn_zone.csv'
+    pathKPN = cwd + '\\ModelData\\Kpn_zone.csv'
     kpnZone = np.genfromtxt(pathKPN, delimiter=',', skip_header=1)
     kpn = kpnZone[:,2]
     latKPN = kpnZone[:,0]
@@ -418,19 +420,20 @@ def extract_GIS_info(startYear, endYear, WFcoords, pathCharm):
     print("GIS information successfully read in for specified WATFLOOD grids!")
     return dataGEO
 
-def extract_tele_timeseries_basin(WFcoords, pathCharm, startYear, endYear):
+def extract_tele_timeseries_basin(WFcoords, cwd, startYear, endYear):
     #Find the number of watflood points that TELE data needs to be extracted at
     numGrids = len(WFcoords)
-    pathTele = pathCharm + r'\isoP_Code\index_files.csv'
+    pathTele = cwd + "\\Tele\\index_files.csv"
+
     #Read in the teleconnection index data
-    tele = np.genfromtxt(pathTele, delimiter=',', dtype='str', encoding='utf-8-sig')
-    numTele = len(tele)
+    teleFiles = np.genfromtxt(pathTele, delimiter=',', dtype='str', encoding='utf-8-sig')
+    numTele = len(teleFiles)
     print("Read in teleconncetion indices!")
 
     inTele = []
     for i in range(numTele):
-        file = tele[i]
-        path = pathCharm + r'\isoP_code\\' + file + '.csv'
+        file = teleFiles[i]
+        path = cwd + '\\Tele\\' + file + '.csv'
         #Read in the teleconnection index data
         inTele.append(np.genfromtxt(path, delimiter=',', skip_header=1))
     
@@ -458,7 +461,7 @@ def extract_tele_timeseries_basin(WFcoords, pathCharm, startYear, endYear):
 
     return tele
 
-def all_data_format_condense(outputNARR, dataGEO, tele, path):
+def all_data_format_condense(outputNARR, dataGEO, tele, cwd):
     #JG -- These arrays are all loaded atonce in matlab, a feature which does not translate to python
     #    I have split them up into their respective files and loaded them in individually.
     files_to_load = ['geoStatsA.csv', 'geoStatsB.csv', 'isotopeStatsA.csv', 'isotopeStatsB.csv', 'teleStatsA.csv', 'teleStatsB.csv', 'NARRStatsA.csv', 'NARRStatsB.csv']
@@ -467,7 +470,7 @@ def all_data_format_condense(outputNARR, dataGEO, tele, path):
     teleStats = []
     NARRStats = []
     for file in files_to_load:
-        pathFile = path + r"\isoP_Code\Stats\\" + file
+        pathFile = cwd + "\\Stats\\" + file
         if 'geo' in file:
             geoStats.append(np.genfromtxt(pathFile, delimiter=',', encoding='utf-8-sig'))
         elif 'iso' in file:
@@ -869,7 +872,7 @@ def all_data_format_condense(outputNARR, dataGEO, tele, path):
     print("Data has been standardized and condensed into seasons!")
     return dataAllKPN_seas, dataStats
 
-def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
+def simulate_Kpn(dataAllKPN_seas, dataStats, cwd):
     #Unpacking datastats
     geoStats = dataStats[0]
     isotopeStats = dataStats[1]
@@ -880,7 +883,7 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
     # rows for each model. THis is used to then calculate the prediction. It is not the same as the OG matlab code unfortunatel
     # and vary from slightly different to very different. Once I have a better solution I will update this.
    
-    with open(pathCharm + r"\isoP_Code\LinearModels\LinearRegression.json") as f:
+    with open(cwd + r"\ModelData\LinearRegression.json") as f:
         modelKPN_seas = json.load(f)
     
 
@@ -1014,9 +1017,12 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
     # uses from the dataALL_cell
 
     for m in range(numIndex):
-        rows = len(allKPN_Grids[0][m])
+        rows0 = len(allKPN_Grids[0][m])
+        rows1 = len(allKPN_Grids[1][m])
+        rows2 = len(allKPN_Grids[2][m])
+        rows3 = len(allKPN_Grids[3][m])
         if kpnZone[0][m][0] == 35:
-            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows), lat[0][m][:], alt[0][m][:])))
+            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows0), lat[0][m][:], alt[0][m][:])))
             xKPN[0][m] = np.transpose(np.vstack((sinVar[0][m][:], cosVar[0][m][:], apcp[0][m][:],\
                                     cape[0][m][:], cdcon[0][m][:], cdlyr[0][m][:], evap[0][m][:],\
                                     hcdc[0][m][:], hbpl[0][m][:], mcdc[0][m][:], prwtr[0][m][:],\
@@ -1024,9 +1030,9 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
                                     wcconv[0][m][:], wcvflx[0][m][:], amo[0][m][:],\
                                     ao[0][m][:], nao[0][m][:], pdo[0][m][:],\
                                     pna[0][m][:], soi[0][m][:], lat[0][m][:], lon[0][m][:], alt[0][m][:])))
-            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows), sinVar[1][m][:], cosVar[1][m][:], lon[1][m][:])))
+            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows1), sinVar[1][m][:], cosVar[1][m][:], lon[1][m][:])))
             xKPN[1][m] = np.transpose(np.vstack((sinVar[1][m][:], cosVar[1][m][:], lon[1][m][:])))
-            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows), hbpl[2][m][:], mcdc[2][m][:], wcvflx[2][m][:])))
+            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows2), hbpl[2][m][:], mcdc[2][m][:], wcvflx[2][m][:])))
             xKPN[2][m] = np.transpose(np.vstack((sinVar[2][m][:], cosVar[2][m][:], apcp[2][m][:],\
                                     cape[2][m][:], cdcon[2][m][:], cdlyr[2][m][:], evap[2][m][:],\
                                     hcdc[2][m][:], hbpl[2][m][:], mcdc[2][m][:], prwtr[2][m][:],\
@@ -1034,7 +1040,7 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
                                     wcconv[2][m][:], wcvflx[2][m][:], amo[2][m][:],\
                                     ao[2][m][:], nao[2][m][:], pdo[2][m][:],\
                                     pna[2][m][:], soi[2][m][:], lat[2][m][:], lon[2][m][:], alt[2][m][:])))
-            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows), prwtr[3][m][:], wcvflx[3][m][:], lat[3][m][:], alt[3][m][:])))
+            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows3), prwtr[3][m][:], wcvflx[3][m][:], lat[3][m][:], alt[3][m][:])))
             xKPN[3][m] = np.transpose(np.vstack((sinVar[3][m][:], cosVar[3][m][:], apcp[3][m][:], cape[3][m][:],\
                                     cdcon[3][m][:], cdlyr[3][m][:], evap[3][m][:], hcdc[3][m][:],\
                                     hbpl[3][m][:], mcdc[3][m][:], prwtr[3][m][:], rhum_2m[3][m][:],\
@@ -1042,13 +1048,13 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
                                     wcvflx[3][m][:], amo[3][m][:], ao[3][m][:], nao[3][m][:],\
                                     pdo[3][m][:], pna[3][m][:], soi[3][m][:], lat[3][m][:],\
                                     lon[3][m][:], alt[3][m][:])))
-            kpnID[0:3, m] = 1
+            kpnID[0:4, m] = 1
         elif kpnZone[0][m][0] == 42:
-            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows), sinVar[0][m][:], cosVar[0][m][:], cdlyr[0][m][:],\
+            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows0), sinVar[0][m][:], cosVar[0][m][:], cdlyr[0][m][:],\
                                     hbpl[0][m][:], prwtr[0][m][:], lon[0][m][:])))
             xKPN[0][m] = np.transpose(np.vstack((sinVar[0][m][:], cosVar[0][m][:], cdlyr[0][m][:], hbpl[0][m][:],\
                                     prwtr[0][m][:], lon[0][m][:])))
-            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows), mcdc[1][m][:], prwtr[1][m][:], rhum_2m[1][m][:],\
+            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows1), mcdc[1][m][:], prwtr[1][m][:], rhum_2m[1][m][:],\
                                     lat[1][m][:], lon[1][m][:], (lat[1][m][:]*lon[1][m][:]))))
             xKPN[1][m] = np.transpose(np.vstack((sinVar[1][m][:], cosVar[1][m][:], apcp[1][m][:], cape[1][m][:],\
                                     cdcon[1][m][:], cdlyr[1][m][:], evap[1][m][:], hcdc[1][m][:],\
@@ -1057,7 +1063,7 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
                                     wcvflx[1][m][:], amo[1][m][:], ao[1][m][:], nao[1][m][:],\
                                     pdo[1][m][:], pna[1][m][:], soi[1][m][:], lat[1][m][:],\
                                     lon[1][m][:], alt[1][m][:])))
-            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows), mcdc[2][m][:], prwtr[2][m][:], uwnd_10m[2][m][:],\
+            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows2), mcdc[2][m][:], prwtr[2][m][:], uwnd_10m[2][m][:],\
                                     vwnd_10m[2][m][:], lat[2][m][:], lon[2][m][:], (mcdc[2][m][:]*uwnd_10m[2][m][:]),\
                                     (mcdc[2][m][:]*lon[2][m][:]), lat[2][m][:]*lon[2][m][:])))
             xKPN[2][m] = np.transpose(np.vstack((sinVar[2][m][:], cosVar[2][m][:], apcp[2][m][:], cape[2][m][:],\
@@ -1067,7 +1073,7 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
                                     wcvflx[2][m][:], amo[2][m][:], ao[2][m][:], nao[2][m][:],\
                                     pdo[2][m][:], pna[2][m][:], soi[2][m][:], lat[2][m][:],\
                                     lon[2][m][:], alt[2][m][:])))
-            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows), mcdc[3][m][:], prwtr[3][m][:], rhum_2m[3][m][:],\
+            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows3), mcdc[3][m][:], prwtr[3][m][:], rhum_2m[3][m][:],\
                                     pdo[3][m][:], lat[3][m][:], lon[3][m][:], (cape[3][m][:]*prwtr[3][m][:]),\
                                     (cape[3][m][:]*lon[3][m][:]), (mcdc[3][m][:]*lat[3][m][:]),\
                                     (prwtr[3][m][:]*rhum_2m[3][m][:]), (prwtr[3][m][:])**2)))
@@ -1075,9 +1081,9 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
                                     lat[3][m][:], lon[3][m][:], (cape[3][m][:]*prwtr[3][m][:]),\
                                     (cape[3][m][:]*lon[3][m][:]), (mcdc[3][m][:]*lat[3][m][:]),\
                                     (prwtr[3][m][:]*rhum_2m[3][m][:]), (prwtr[3][m][:])**2)))
-            kpnID[0:3, m] = 2
+            kpnID[0:4, m] = 2
         elif kpnZone[0][m][0] == 43:
-            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows), evap[0][m][:], prwtr[0][m][:], nao[0][m][:], pdo[0][m][:],\
+            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows0), evap[0][m][:], prwtr[0][m][:], nao[0][m][:], pdo[0][m][:],\
                                     lon[0][m][:], (lon[0][m][:])**2)))
             xKPN[0][m] = np.transpose(np.vstack((sinVar[0][m][:], cosVar[0][m][:], apcp[0][m][:], cape[0][m][:],\
                                     cdcon[0][m][:], cdlyr[0][m][:], evap[0][m][:], hcdc[0][m][:],\
@@ -1085,20 +1091,20 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
                                     uwnd_10m[0][m][:], vwnd_10m[0][m][:], wcconv[0][m][:], wcvflx[0][m][:],\
                                     amo[0][m][:], ao[0][m][:], nao[0][m][:], pdo[0][m][:], pna[0][m][:],\
                                     soi[0][m][:], lat[0][m][:], lon[0][m][:], alt[0][m][:])))
-            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows), mcdc[1][m][:], prwtr[1][m][:], pna[1][m][:],\
+            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows1), mcdc[1][m][:], prwtr[1][m][:], pna[1][m][:],\
                                     lat[1][m][:], alt[1][m][:], (evap[1][m][:]*alt[1][m][:]),\
                                     (prwtr[1][m][:]*alt[1][m][:]), (lat[1][m][:]*alt[1][m][:]), (alt[1][m][:])**2)))
             xKPN[1][m] = np.transpose(np.vstack((mcdc[1][m][:], prwtr[1][m][:], pna[1][m][:], lat[1][m][:],\
                                     alt[1][m][:], (evap[1][m][:]*alt[1][m][:]), (prwtr[1][m][:]*alt[1][m][:]),\
                                     (lat[1][m][:]*alt[1][m][:]), (alt[1][m][:])**2)))
-            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows), apcp[2][m][:], vwnd_10m[2][m][:], lat[2][m][:], lon[2][m][:])))
+            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows2), apcp[2][m][:], vwnd_10m[2][m][:], lat[2][m][:], lon[2][m][:])))
             xKPN[2][m] = np.transpose(np.vstack((sinVar[2][m][:], cosVar[2][m][:], apcp[2][m][:], cape[2][m][:],\
                                     cdcon[2][m][:], cdlyr[2][m][:], evap[2][m][:], hcdc[2][m][:],\
                                     hbpl[2][m][:], mcdc[2][m][:], prwtr[2][m][:], rhum_2m[2][m][:],\
                                     uwnd_10m[2][m][:], vwnd_10m[2][m][:], wcconv[2][m][:], wcvflx[2][m][:],\
                                     amo[2][m][:], ao[2][m][:], nao[2][m][:], pdo[2][m][:], pna[2][m][:],\
                                     soi[2][m][:], lat[2][m][:], lon[2][m][:], alt[2][m][:])))
-            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows), mcdc[3][m][:], prwtr[3][m][:], uwnd_10m[3][m][:],\
+            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows3), mcdc[3][m][:], prwtr[3][m][:], uwnd_10m[3][m][:],\
                                     amo[3][m][:], lat[3][m][:], (mcdc[3][m][:])**2)))
             xKPN[3][m] = np.transpose(np.vstack((sinVar[3][m][:], cosVar[3][m][:], apcp[3][m][:], cape[3][m][:],\
                                     cdcon[3][m][:], cdlyr[3][m][:], evap[3][m][:], hcdc[3][m][:],\
@@ -1106,36 +1112,36 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
                                     uwnd_10m[3][m][:], vwnd_10m[3][m][:], wcconv[3][m][:], wcvflx[3][m][:],\
                                     amo[3][m][:], ao[3][m][:], nao[3][m][:], pdo[3][m][:], pna[3][m][:],\
                                     soi[3][m][:], lat[3][m][:], lon[3][m][:], alt[3][m][:])))
-            kpnID[0:3, m] = 3
+            kpnID[0:4, m] = 3
         elif kpnZone[0][m][0] == 47:
-            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows), sinVar[0][m][:], cosVar[0][m][:])))
+            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows0), sinVar[0][m][:], cosVar[0][m][:])))
             xKPN[0][m] = np.transpose(np.vstack((sinVar[0][m][:], cosVar[0][m][:])))
-            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows), sinVar[1][m][:], cosVar[1][m][:])))
+            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows1), sinVar[1][m][:], cosVar[1][m][:])))
             xKPN[1][m] = np.transpose(np.vstack((sinVar[1][m][:], cosVar[1][m][:])))
-            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows), sinVar[2][m][:], cosVar[2][m][:])))
+            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows2), sinVar[2][m][:], cosVar[2][m][:])))
             xKPN[2][m] = np.transpose(np.vstack((sinVar[2][m][:], cosVar[2][m][:])))
-            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows), sinVar[3][m][:], cosVar[3][m][:])))
+            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows3), sinVar[3][m][:], cosVar[3][m][:])))
             xKPN[3][m] = np.transpose(np.vstack((sinVar[3][m][:], cosVar[3][m][:])))
-            kpnID[0:3, m] = 4
+            kpnID[0:3+1, m] = 4
         elif kpnZone[0][m][0] == 62:
-            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows), sinVar[0][m][:], cosVar[0][m][:], mcdc[0][m][:], prwtr[0][m][:], lon[0,m][:,0])))
-            xKPN[0][m] = np.transpose(np.vstack((sinVar[0][m][:], cosVar[0][m][:], mcdc[0][m][:], prwtr[0][m][:], lon[0,m][:,0])))
-            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows), sinVar[1][m][:], cosVar[1][m][:], prwtr[1][m][:], ao[1][m][:])))
+            xKPN2[0][m] = np.transpose(np.vstack((np.ones(rows0), sinVar[0][m][:], cosVar[0][m][:], mcdc[0][m][:], prwtr[0][m][:], lon[0][m][:])))
+            xKPN[0][m] = np.transpose(np.vstack((sinVar[0][m][:], cosVar[0][m][:], mcdc[0][m][:], prwtr[0][m][:], lon[0][m][:])))
+            xKPN2[1][m] = np.transpose(np.vstack((np.ones(rows1), sinVar[1][m][:], cosVar[1][m][:], prwtr[1][m][:], ao[1][m][:])))
             xKPN[1][m] = np.transpose(np.vstack((sinVar[1][m][:], cosVar[1][m][:], prwtr[1][m][:], ao[1][m][:])))
-            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows), prwtr[2][m][:], vwnd_10m[2][m][:])))
+            xKPN2[2][m] = np.transpose(np.vstack((np.ones(rows2), prwtr[2][m][:], vwnd_10m[2][m][:])))
             xKPN[2][m] = np.transpose(np.vstack((sinVar[2][m][:], cosVar[2][m][:], apcp[2][m][:], cape[2][m][:], cdcon[2][m][:],\
                                    cdlyr[2][m][:], evap[2][m][:], hcdc[2][m][:], hbpl[2][m][:], mcdc[2][m][:],\
                                     prwtr[2][m][:], rhum_2m[2][m][:], uwnd_10m[2][m][:], vwnd_10m[2][m][:],\
                                     wcconv[2][m][:], wcvflx[2][m][:], amo[2][m][:], ao[2][m][:], nao[2][m][:],\
                                     pdo[2][m][:], pna[2][m][:], soi[2][m][:], lat[2][m][:], lon[2][m][:], alt[2][m][:])))
-            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows), mcdc[3][m][:], prwtr[3][m][:], lat[3][m][:])))
+            xKPN2[3][m] = np.transpose(np.vstack((np.ones(rows3), mcdc[3][m][:], prwtr[3][m][:], lat[3][m][:])))
             xKPN[3][m] = np.transpose(np.vstack((mcdc[3][m][:], prwtr[3][m][:], lat[3][m][:])))
-            kpnID[0:3, m] = 5
+            kpnID[0:4, m] = 5
     print("Simulating monthly 18Oppt!")
 
     ypred_std_KPN = [[[] for j  in range(numIndex)] for i in range(numSeas)]
-    if checkPI == 'y': #Currently skipping this section will develop at a later point
-        #numR is the number of iterations (typically 1000 is enough) and alpha is the significance level
+    if checkPI == 'y': # Currently skipping this section will develop at a later point
+        # numR is the number of iterations (typically 1000 is enough) and alpha is the significance level
         # these can be changed if required
         numR = 1000
         alpha = 0.05
@@ -1151,7 +1157,7 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
         for season in range(numSeas):
             for gridNum in range(numIndex):
                 numX = np.shape(xKPN[season][gridNum])[0]
-                modelNum =  "LM" + str(season*5+int(kpnID[season][gridNum]-1) + 1)
+                modelNum =  "LM" + str(season*5+int(kpnID[season][gridNum]))
                 model = modelKPN_seas[modelNum]
                 rowArray = np.zeros((numX, 1))
                 for row in range(numX):
@@ -1161,7 +1167,7 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
                             xValue += coeff
                         elif len(col.split(',')) == 2 and col.split(',')[0] == col.split(',')[1]:
                             xValue += coeff * xKPN[season][gridNum][row, int(col.split(',')[0])]
-                        elif len(col.split(',')) == 2 and col.split(',')[0] == col.split(',')[1]:
+                        elif len(col.split(',')) == 2 and col.split(',')[0] != col.split(',')[1]:
                             xValue += coeff * xKPN[season][gridNum][row, int(col.split(',')[0])] * xKPN[season][gridNum][row, int(col.split(',')[1])]
                         else:
                             xValue += coeff * xKPN[season][gridNum][row, int(col)]
@@ -1184,39 +1190,221 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm):
     print("Time series 18Oppt for the KPN regionalization has been simulated. YAY!")
     return stackPI, binaryPI
 
-def isoP():
-    path = input("What is the main directory for the model? ")
-    startYear = int(input("What is the start year for the model? "))
-    endYear = int(input("What is the end year for the model? "))
-    #Extract the neame of the basin from the path name provided
-    #JG - Struggled with the raw string input, needed this way to list correctly
-    #path = input("What is the main directory for the model? ")
-    splitPath = path.split("\\")
-    basinName = splitPath[-1]
+def write_Kpn_WATFLOOD(path, basinName, stackPI, binaryPI):
+########################################################################
+#
+#    Comments: This program reads in the PI simulations,
+#    re-formats them into a cell (each cell index represents a monthly gridded
+#    18Oppt for the basin, with num_month indices). Then the program writes
+#    the gridded 18Oppt time series to the r2c file format (including the
+#    header) and outputs it as yyyymmdd_drn.r2c.
+#
+#    TH: added monthly/yearly output option for different WATFLOOD events
+########################################################################
 
-    #Read in the SHD file and create a grid of LAT LONGs for the basin
-    #JG -- Used to create an XLS file in the isoP folder, now creates a CSV
+
+    # Ask user if they would like to output the data in monthly or yearly format
+    userDecision = input("Would you like yearly or monthly output? Y/M: ").lower()
+    
+    # Read through shd file to determine some base information
+    headerInfo = {}
+    # Read in the header from the SHD file 
+    with open(path + f"\\basin\\{basinName}_shd.r2c", 'r') as f:
+        for line in f:
+            if line.startswith(":SourceFileName"):
+                headerInfo["SourceFileName"] = line.split()[1]
+            elif line.startswith(":Projection"):
+                headerInfo["Projection"] = line.split()[1]
+            elif line.startswith(":Ellipsoid"):
+                headerInfo["Ellipsoid"] = line.split()[1]
+            elif line.startswith(":xOrigin"):
+                headerInfo["xOrigin"] = line.split()[1]
+            elif line.startswith(":yOrigin"):
+                headerInfo["yOrigin"] = line.split()[1]
+            elif line.startswith(":xCount"):
+                headerInfo["xCount"] = line.split()[1]
+            elif line.startswith(":yCount"):
+                headerInfo["yCount"] = line.split()[1]
+            elif line.startswith(":xDelta"):
+                headerInfo["xDelta"] = line.split()[1]
+            elif line.startswith(":yDelta"):
+                headerInfo["yDelta"] = line.split()[1]
+    
+    # Add other information to the header
+    headerInfo["CreationDate"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    headerInfo["WrittenBy"] = "isoP.py"
+    
+    # Change format of output from a cell for each grid to a cell for each month in entire grid
+    numMonths = len(stackPI[0])
+    numGrids = len(stackPI)
+    meanO18_allGrids = np.zeros((numMonths, numGrids)) # Initialize the array to hold the data
+    meanO18_Gridded = [np.zeros((int(headerInfo["yCount"]), int(headerInfo["xCount"]))) for i in range(numMonths)]
+
+    for i in range(numGrids):
+        if binaryPI == 1:
+            # This will be done once I have added this function
+            pass
+        else:
+            meanO18_allGrids[:, i] = stackPI[i][:, 2]
+
+    for m in range(numMonths):
+        if binaryPI == 1:
+            # This will be done once I have added this function
+            pass
+        else:
+            # Grab the month from meanO18_allGrids
+            meanO18_month = meanO18_allGrids[m, :]
+            yCount_array = range(1,numGrids+2, int(headerInfo["yCount"])) # CHECK TO SEE IF INDEXING IS CORRECT
+
+        for j in range(int(headerInfo['xCount'])):
+            if binaryPI == 1:
+                # This will be done once I have added this function
+                pass
+            else:
+                meanO18_Gridded[m][:,j] = meanO18_month[yCount_array[j]:yCount_array[j+1]]
+
+def write_Kpn_coords(stackPI):
+    path = r"C:\Users\jaxton.gray\OneDrive - University of Calgary\University\UC-HAL\Programming\New isoPy\Odei"
+    basinName = "Odei"
+    WFcoords = np.genfromtxt(path + f"\\isoP\\{basinName}_coords.csv", delimiter = ',')
+
+    # Intialize the output file
+    outputFile = pd.DataFrame(columns=["Month", "Year", "Latitude", "Longitude", "O18"])
+    numMonths = len(stackPI[0])
+
+    for grid in range(len(stackPI)):
+        lat = WFcoords[grid][0]
+        lon = WFcoords[grid][1]
+
+        gridOutput = pd.DataFrame({"Month": stackPI[grid][:, 0], 
+                                    "Year": stackPI[grid][:, 1], 
+                                    "Latitude": np.full(numMonths, lat),
+                                    "Longitude": np.full(numMonths, lon),
+                                    "O18": stackPI[grid][:, 2]})
+        outputFile = pd.concat([outputFile, gridOutput],  ignore_index=True)
+
+    outputFile.to_csv(path + f"\\isoP\\{basinName}_O18.csv", index = False)
+
+def download_NARR_data():
+    ### First we will create the folder to contain the climate variables
+    try:
+        mkdir("ClimateVariables")
+    except FileExistsError:
+        print("The ClimateVariables folder already exists, please delete or move it and attempt again!")
+
+    ### Now we need to open the var_names file so we now what variables we want and save them in a list
+    variables_to_download = pd.read_csv(r"NARR\NARR_var_names.csv", header=None)
+    varFile = variables_to_download[0].tolist()
+
+    ### Now we will cycle through each variable and download it from the 
+    count = 1
+    for var in varFile:
+        url = r"https://downloads.psl.noaa.gov/Datasets/NARR/Monthlies/monolevel/" + var
+        r = requests.get(url)
+        with open(r"ClimateVariables/" + var, "wb") as code:
+            code.write(r.content)
+        print(var + " has been downloaded!")
+        print(str(round(count/len(varFile)*100), 2) + "% complete!")
+        count += 1
+
+def isoP_WATFLOOD(cwd):
+    path = input("\nPlease enter the full path to the parent folder containing the isoP folder:\n")
+    basinName = input("\nPlease enter the name of the basin: ")
+    startYear = int(input("\nPlease enter the start year wanted: "))
+    endYear = int(input("\nPlease enter the end year wanted: "))
+    print("\n")
+
     WFcoords = readSHD_File(path, basinName)
-
-    #For the specified lat/long pairs, extract the full NARR time series
-    #(currently 1979-2012) at each grid point.
-    output, pathNARR, pathCharm = extract_NARR_timeseries(path, basinName)
-
-    #Format the NARR data to be in the same format as the crop data
+    output, pathNARR = extract_NARR_timeseries(cwd, path, basinName)
     outputNARR = NARR_format_timeseries_basin(output, pathNARR, startYear, endYear)
+    dataGEO = extract_GIS_info(startYear, endYear, WFcoords, cwd)
+    tele = extract_tele_timeseries_basin(WFcoords, cwd, startYear, endYear)
+    dataALLKPN_seas, dataStats = all_data_format_condense(outputNARR, dataGEO, tele, cwd)
+    stackPI, binaryPI = simulate_Kpn(dataALLKPN_seas, dataStats, cwd)
+    write_Kpn_WATFLOOD(path, basinName, stackPI, binaryPI)
+    print("isoP has been completed!")
 
-    #Extract the elevation and  specify the zones for the KPN, 2Zone, and 1Zone
-    #regionalizations for the specified WATFLOOD grid
-    dataGEO = extract_GIS_info(startYear, endYear, WFcoords, pathCharm)
+def isoP_coords(cwd):
+    path = input("\nPlease enter the full path to the parent folder containing the isoP folder:\n")
+    basinName = input("\nPlease enter the name of the basin: ")
+    startYear = int(input("\nPlease enter the start year wanted: "))
+    endYear = int(input("\nPlease enter the end year wanted: "))
+    print("\n")
 
-    #Extract teleconnection indices for the specified period of years
-    tele = extract_tele_timeseries_basin(WFcoords, pathCharm, startYear, endYear)
+    # Create the path to the coordinates file
+    pathCoords = path + f"\\isoP\\{basinName}_coords.csv"
 
-    #Standaize the data (for model stability), and condense data sources into one cell
-    # for each of the three regionalization
-    dataAllKPN_seas, dataStats = all_data_format_condense(outputNARR, dataGEO, tele, path)
+    coords = np.genfromtxt(pathCoords, delimiter = ',')
+    output, pathNARR = extract_NARR_timeseries(cwd, path, basinName)
+    outputNARR = NARR_format_timeseries_basin(output, pathNARR, startYear, endYear)
+    dataGEO = extract_GIS_info(startYear, endYear, coords, cwd)
+    tele = extract_tele_timeseries_basin(coords, cwd, startYear, endYear)
+    dataALLKPN_seas, dataStats = all_data_format_condense(outputNARR, dataGEO, tele, cwd)
+    stackPI, binaryPI = simulate_Kpn(dataALLKPN_seas, dataStats, cwd)
+    write_Kpn_coords(stackPI)
+    print("isoP has been completed!")
 
-    #Simulate th kpn data
-    stackPI, binaryPI = simulate_Kpn(dataAllKPN_seas, dataStats, pathCharm)
+def CLI_menu(cwd):
+    inMenu = True
+    while inMenu:
+        print("\nPlease select an option from the following list:")
+        print("------------------------------------------------")
+        print("1. Instructions on how to run isoP")
+        print("2. Download NARR data - Must be done before running isoP")
+        print("3. Run isoP with WATFLOOD")
+        print("4. Run isoP off of coordinates file only - No WATFLOOD output")
+        print("5. Exit")
+        userChoice = input("Enter the number of the option you would like to select: ")
+        print("\n")
 
-isoP()
+        if userChoice == '1':
+            print("Instructions on how to run isoP!")
+            print("You must have a directory containing the following folders:")
+            print("1. A basin folder that has the same name as the basin you are running isoP for.")
+            print("2. Within folder 1 an empty folder called 'isoP'.") # I could just make it lol
+            print("3. After this you must run the program and select option 2 to download the NARR data.")
+            print("The program will not run without the NARR data. They must also be updated periodically.")
+            print("4. Then choose which ever option you would like to run isoP.")
+            print("It will automatically write the output to the basin folder mentioned in step 1.")
+            print("If you rerun the program IT WILL OVERWRITE the previous output files.\n")
+        
+        elif userChoice == '2':
+            print("Downloading NARR data, this may take a while.")
+            download_NARR_data()
+            print("NARR data has been downloaded!")
+        
+        elif userChoice == '3':
+            isoP_WATFLOOD(cwd)
+        
+        elif userChoice == '4':
+            isoP_coords(cwd)
+        
+        elif userChoice == '5':
+            print("Exiting the program.")
+            inMenu = False
+        
+        else:
+            print("Invalid input please try again.")
+
+
+def main():
+    # Currently just running the isoP function but will open the CLI menu when ready
+    print("""
+        ██ ███████  ██████  ██████  
+        ██ ██      ██    ██ ██   ██ 
+        ██ ███████ ██    ██ ██████  
+        ██      ██ ██    ██ ██      
+        ██ ███████  ██████  ██      
+                       """)
+    print("Written by C. Delavau December 2014. (c)")
+    print("Updated by T. Holmes June 2017 for running isoP without WATFLOOD.")
+    print("Converted to Python by J. Gray August 2023.")
+
+    print("""WARNING: The python version is still in development. As of this moment it cannot write WATFLOOD files.
+          It can only write the coordinates file. Please select option 4 to run isoP without WATFLOOD. 
+          Currently the program cannot not preform the statistics, so when asked if you would like to run the PI please select no.\n""")
+    cwd = getcwd() # For openning files within the isoP folder and thus removing complications with file paths
+
+
+    CLI_menu(cwd)
+main()
