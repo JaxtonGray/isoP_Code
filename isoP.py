@@ -1361,7 +1361,7 @@ def CLI_menu(cwd):
             print("Instructions on how to run isoP!")
             print("You must have a directory containing the following folders:")
             print("1. A basin folder that has the same name as the basin you are running isoP for (Doesn't matter what the name is as long as you are consistent with the basin name).")
-            print("2. Within folder 1 an empty folder called 'isoP'.") # I could just make it lol
+            print("2. Within folder 1 an empty folder called 'isoP'.")
             print("*    This is only relevant for the non-WATFLOOD option.")
             print("*    For the non-WATFLOOD option you must also have a csv file (no header) with the coordinates you'd like to run isoP for.")
             print("*    The file must be named 'basinName_coords.csv' and be in the isoP folder.")
@@ -1408,7 +1408,6 @@ def main():
           It can only write the coordinates file. Please select option 4 to run isoP without WATFLOOD. 
           Currently the program cannot not preform the statistics, so when asked if you would like to run the PI please select no.\n""")
     cwd = getcwd() # For openning files within the isoP folder and thus removing complications with file paths
-
-
     CLI_menu(cwd)
+    
 main()
