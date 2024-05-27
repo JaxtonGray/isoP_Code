@@ -1360,12 +1360,16 @@ def CLI_menu(cwd):
         if userChoice == '1':
             print("Instructions on how to run isoP!")
             print("You must have a directory containing the following folders:")
-            print("1. A basin folder that has the same name as the basin you are running isoP for.")
+            print("1. A basin folder that has the same name as the basin you are running isoP for (Doesn't matter what the name is as long as you are consistent with the basin name).")
             print("2. Within folder 1 an empty folder called 'isoP'.") # I could just make it lol
-            print("3. After this you must run the program and select option 2 to download the NARR data.")
-            print("The program will not run without the NARR data. They must also be updated periodically.")
+            print("*    This is only relevant for the non-WATFLOOD option.")
+            print("*    For the non-WATFLOOD option you must also have a csv file (no header) with the coordinates you'd like to run isoP for.")
+            print("*    The file must be named 'basinName_coords.csv' and be in the isoP folder.")
+            print("3. After this you must run the program and select option 2 to download the NARR data if you haven't already.")
+            print("*    The program will not run without the NARR data. They must also be updated periodically.")
+            print("*    The teleconnection indices at this point need to be updated manually in the program folder")
             print("4. Then choose which ever option you would like to run isoP.")
-            print("It will automatically write the output to the basin folder mentioned in step 1.")
+            print("*    It will automatically write the output to the basin folder mentioned in step 1.")
             print("If you rerun the program IT WILL OVERWRITE the previous output files.\n")
         
         elif userChoice == '2':
