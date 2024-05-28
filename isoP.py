@@ -1208,6 +1208,7 @@ def write_Kpn_WATFLOOD(path, basinName, stackPI, binaryPI):
     
     # Read through shd file to determine some base information
     headerInfo = {}
+    data = {}
     # Read in the header from the SHD file 
     with open(path + f"\\basin\\{basinName}_shd.r2c", 'r') as f:
         for line in f:
@@ -1219,20 +1220,69 @@ def write_Kpn_WATFLOOD(path, basinName, stackPI, binaryPI):
                 headerInfo["Ellipsoid"] = line.split()[1]
             elif line.startswith(":xOrigin"):
                 headerInfo["xOrigin"] = line.split()[1]
+                data["xOrigin"] = float(headerInfo["xOrigin"])
             elif line.startswith(":yOrigin"):
                 headerInfo["yOrigin"] = line.split()[1]
+                data["yOrigin"] = float(headerInfo["yOrigin"])
             elif line.startswith(":xCount"):
                 headerInfo["xCount"] = line.split()[1]
+                data["xCount"] = int(headerInfo["xCount"])
             elif line.startswith(":yCount"):
                 headerInfo["yCount"] = line.split()[1]
+                data["yCount"] = int(headerInfo["yCount"])
             elif line.startswith(":xDelta"):
                 headerInfo["xDelta"] = line.split()[1]
+                data["xDelta"] = float(headerInfo["xDelta"])
             elif line.startswith(":yDelta"):
                 headerInfo["yDelta"] = line.split()[1]
+                data["yDelta"] = float(headerInfo["yDelta"])
     
     # Add other information to the header
     headerInfo["CreationDate"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     headerInfo["WrittenBy"] = "isoP.py"
+    headerInfo["DataType"] = "2D Rect Cell"
+    headerInfo["Name"] = "18Oppt Kpn mean"
+    headerInfo["Units"] = "permille"
+    headerInfo["AtributeName"] = "deltar"
+    headerInfo["UnitConversion"] = "1.0000"
+    headerInfo["SourceFileName"] = "N/A"
+
+    # Creating the header within a single string
+    header = f"""########################################
+:FileType r2c ASCII EnSim 1.0
+#
+:DataType          {headerInfo["DataType"]}
+#
+:Application       EnSimHydrologic
+:Version           1.0
+:WrittenBy         {headerInfo["WrittenBy"]}
+:CreationDate      {headerInfo["CreationDate"]}
+#
+#---------------------------------------
+#
+:Name               {headerInfo["Name"]}
+#
+:Projection         {headerInfo["Projection"]}
+:Ellipsoid          {headerInfo["Ellipsoid"]}
+#
+:xOrigin            {headerInfo["xOrigin"]}
+:yOrigin            {headerInfo["yOrigin"]}
+#
+:SourceFile         {headerInfo["SourceFileName"]}
+#
+:AttributeName1     {headerInfo["AtributeName"]}
+:AttributeUnits     {headerInfo["Units"]}
+#
+:xCount             {headerInfo["xCount"]}
+:yCount             {headerInfo["yCount"]}
+:xDelta             {headerInfo["xDelta"]}
+:yDelta             {headerInfo["yDelta"]}
+#
+:UnitConversion     {headerInfo["UnitConversion"]}
+#
+:endHeader
+"""
+
     
     # Change format of output from a cell for each grid to a cell for each month in entire grid
     numMonths = len(stackPI[0])
@@ -1264,8 +1314,8 @@ def write_Kpn_WATFLOOD(path, basinName, stackPI, binaryPI):
                 meanO18_Gridded[m][:,j] = meanO18_month[yCount_array[j]:yCount_array[j+1]]
 
 def write_Kpn_coords(stackPI):
-    path = r"C:\Users\jaxton.gray\OneDrive - University of Calgary\University\UC-HAL\Programming\New isoPy\Odei"
-    basinName = "Odei"
+    path = input("Please enter the path to the basin folder: ")
+    basinName = input("Please enter the basin name: ")
     WFcoords = np.genfromtxt(path + f"\\isoP\\{basinName}_coords.csv", delimiter = ',')
 
     # Intialize the output file
