@@ -1313,9 +1313,7 @@ def write_Kpn_WATFLOOD(path, basinName, stackPI, binaryPI):
             else:
                 meanO18_Gridded[m][:,j] = meanO18_month[yCount_array[j]:yCount_array[j+1]]
 
-def write_Kpn_coords(stackPI):
-    path = input("Please enter the path to the basin folder: ")
-    basinName = input("Please enter the basin name: ")
+def write_Kpn_coords(stackPI, path, basinName):
     WFcoords = np.genfromtxt(path + f"\\isoP\\{basinName}_coords.csv", delimiter = ',')
 
     # Intialize the output file
@@ -1395,7 +1393,7 @@ def isoP_coords(cwd):
     tele = extract_tele_timeseries_basin(coords, cwd, startYear, endYear)
     dataALLKPN_seas, dataStats = all_data_format_condense(outputNARR, dataGEO, tele, cwd)
     stackPI, binaryPI = simulate_Kpn(dataALLKPN_seas, dataStats, cwd)
-    write_Kpn_coords(stackPI)
+    write_Kpn_coords(stackPI, path, basinName)
     print("isoP has been completed!")
 
 def CLI_menu(cwd):
