@@ -1354,14 +1354,18 @@ def download_NARR_data():
         with open(r"ClimateVariables/" + var, "wb") as code:
             code.write(r.content)
         print(var + " has been downloaded!")
-        print(str(round(count/len(varFile)*100), 2) + "% complete!")
+        print(str(round(count/len(varFile)*100, 2)) + "% complete!")
         count += 1
 
 def isoP_WATFLOOD(cwd):
-    path = input("\nPlease enter the full path to the parent folder containing the isoP folder:\n")
-    basinName = input("\nPlease enter the name of the basin: ")
-    startYear = int(input("\nPlease enter the start year wanted: "))
-    endYear = int(input("\nPlease enter the end year wanted: "))
+    #path = input("\nPlease enter the full path to the parent folder containing the isoP folder:\n")
+    path = r"C:\Users\jaxgr\OneDrive - University of Calgary\University\UC-HAL\Programming\New isoPy\Odei"
+    #basinName = input("\nPlease enter the name of the basin: ")
+    basinName = "Odei"
+    #startYear = int(input("\nPlease enter the start year wanted: "))
+    startYear = 2001
+    #endYear = int(input("\nPlease enter the end year wanted: "))
+    endYear = 2005
     print("\n")
 
     WFcoords = readSHD_File(path, basinName)
@@ -1459,5 +1463,6 @@ def main():
           Currently the program cannot not preform the statistics, so when asked if you would like to run the PI please select no.\n""")
     cwd = getcwd() # For openning files within the isoP folder and thus removing complications with file paths
     CLI_menu(cwd)
+    #isoP_WATFLOOD(cwd)
     
 main()
