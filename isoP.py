@@ -1319,7 +1319,6 @@ def write_Kpn_coords(stackPI, path, basinName):
     # Intialize the output file
     outputFile = pd.DataFrame(columns=["Month", "Year", "Latitude", "Longitude", "O18"])
     numMonths = len(stackPI[0])
-
     for grid in range(len(stackPI)):
         lat = WFcoords[grid][0]
         lon = WFcoords[grid][1]
@@ -1330,7 +1329,6 @@ def write_Kpn_coords(stackPI, path, basinName):
                                     "Longitude": np.full(numMonths, lon),
                                     "O18": stackPI[grid][:, 2]})
         outputFile = pd.concat([outputFile, gridOutput],  ignore_index=True)
-
     outputFile.to_csv(path + f"\\isoP\\{basinName}_O18.csv", index = False)
 
 def download_NARR_data():
@@ -1461,6 +1459,6 @@ def main():
           Currently the program cannot not preform the statistics, so when asked if you would like to run the PI please select no.\n""")
     cwd = getcwd() # For openning files within the isoP folder and thus removing complications with file paths
     CLI_menu(cwd)
-    #isoP_WATFLOOD(cwd)
+    
     
 main()
