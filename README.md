@@ -17,18 +17,43 @@ You can do this by loading up the command prompt and typing the following for ea
 ```
 pip install [package name]
 ```
+or you can install all the packages at once by typing the following:
+```
+pip install -r requirements.txt
+```
+NOTE: The JSON package is included in the standard library so you do not need to install it. If you try running the program and it says the package is not installled it may have been due to improper installation of python. You may need to reinstall python and ensure that you have the correct version of pip installed.
+
 Afterwards you will need to clone this repository to your system. You must place the folder in the main basin directory. This is because you will need to enter the path to the main basin directory when you run the program.
 
 ## How to use
-### Downloadoing the climate variables from NARR
-Once the correct packages have been installed as well as python, you must first download the climate variables from this [NARR website](https://downloads.psl.noaa.gov/Datasets/NARR/Monthlies/monolevel/). To do this you will need to first run the program *NARR_variables_download.py* located in the NARR directory. This will download the climate variables from the website and place them in a new directory called ClimateVariables. This directory will be located in the isoP_Code directory. This process may take a while depending on your internet connection.
+### Downloading the program
+You can download the program by cloning the repository to your system. This is made simple via the Github website. You can do this by clicking
+the green code button and copying the link. You can then open *git bash* and type the following:
+```bash
+git clone [link]
+```
+This will download the repository to your system where the git bash is currently located within the directory. This program does not need to be anywhere in particular on your system. You can place it wherever you like.
+### Set up of the input
+There are two parts to this depending on whether you are running WATFLOOD files or not. If you are using watflood files as inputs you need to make sure you have your SHD files setup within the basin directory. Then you need to make a folder with the main directory called isoP. This is where the program will store the output files as well as a list of coordinates derived from the SHD files. 
 
-### Running the isoP program
-Once all the climate variables have been downloaded you can run the isoP program. The isoP program is located in the isoP_Code directory and is called *isoP.py*. Run the program, you will be prompted by the following:
- 1. Please enter the path to the main basin directory
- 2. Start year for the program
- 3. End year for the program
+If you are not using WATFLOOD files you need to make sure you have setup your directory accordingly. 
+```
+basinname\isoP\basinname_coords.csv
+```
+This is where the program will look for the coordinates to use in the program and where it will store the output files. The basin name *does not* matter, only that it is consistent.  
 
+### Running the program
+The entirety of the program is run through the command line. You can run the program by opening the command prompt and navigating to the directory where the program is located. You can then run the program by typing the following:
+```bash
+python isoP.py
+```
+You will be told by the program that you need to download the NARR climate variables first, to do so please select the correct option. This will take sometime as those files are quite large. Once those are downloaded you can then select the option that you want from the main menu. This does not need to be done everytime, but they do need to be updated every now and then. This goes for the teleconnection files as well. However the teleconnection files will have to be done manually as of now.
+
+The program will load up and you can select your options from there. The program will prompt you for the following:
+* The path to the main basin directory
+* Basin name
+* Start year
+* End year
 
 Keep an eye out for more prompts that may appear later.
 
@@ -41,8 +66,4 @@ This pompt **MUST** be answered with a no or n as of this moment. This is becaus
 # WARNING
 This program is still in the beginning stages of development. While it does work it is worth noting that it is not capable of working with UTM coordinates as of yet, so please ensure that you are using latitude and longitude coordinates.
 
-Also, while the python version does currently run with the linear regression models that were used in the orignal matlab version, it lacks the same functionality as those models. It loads in CSV files that contain the linear regression coefficients and intercepts, this will be remedied in the future with a better solution.
-
-It is missing the last function, as I am currently working on a way to implement it in python. I will update this when I have a solution.
-
-Finally it is missing the NARR climate variables themselves because they are too large
+Also, while the python version does currently run with the linear regression models that were used in the orignal matlab version, it lacks the same functionality as those models. Thus there is a JSON file that contains the coefficients and intercepts for the linear regression models.
