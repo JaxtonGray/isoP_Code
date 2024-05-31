@@ -4,7 +4,7 @@ import pandas as pd
 from scipy.spatial import Delaunay, distance
 import netCDF4 as nc
 import math
-from os import getcwd, mkdir
+import os
 import requests
 import json
 from datetime import datetime
@@ -1208,7 +1208,6 @@ def write_Kpn_WATFLOOD(path, basinName, stackPI, binaryPI):
     
     # Read through shd file to determine some base information
     headerInfo = {}
-    data = {}
     # Read in the header from the SHD file 
     with open(path + f"\\basin\\{basinName}_shd.r2c", 'r') as f:
         for line in f:
@@ -1220,28 +1219,22 @@ def write_Kpn_WATFLOOD(path, basinName, stackPI, binaryPI):
                 headerInfo["Ellipsoid"] = line.split()[1]
             elif line.startswith(":xOrigin"):
                 headerInfo["xOrigin"] = line.split()[1]
-                data["xOrigin"] = float(headerInfo["xOrigin"])
             elif line.startswith(":yOrigin"):
                 headerInfo["yOrigin"] = line.split()[1]
-                data["yOrigin"] = float(headerInfo["yOrigin"])
             elif line.startswith(":xCount"):
                 headerInfo["xCount"] = line.split()[1]
-                data["xCount"] = int(headerInfo["xCount"])
             elif line.startswith(":yCount"):
                 headerInfo["yCount"] = line.split()[1]
-                data["yCount"] = int(headerInfo["yCount"])
             elif line.startswith(":xDelta"):
                 headerInfo["xDelta"] = line.split()[1]
-                data["xDelta"] = float(headerInfo["xDelta"])
             elif line.startswith(":yDelta"):
                 headerInfo["yDelta"] = line.split()[1]
-                data["yDelta"] = float(headerInfo["yDelta"])
     
     # Add other information to the header
-    headerInfo["CreationDate"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    headerInfo["CreationDate"] = datetime.now().strftime("%Y/%m/%d")
     headerInfo["WrittenBy"] = "isoP.py"
     headerInfo["DataType"] = "2D Rect Cell"
-    headerInfo["Name"] = "18Oppt Kpn mean"
+    headerInfo["Name"] = "18Oppt_KPN_mean"
     headerInfo["Units"] = "permille"
     headerInfo["AtributeName"] = "deltar"
     headerInfo["UnitConversion"] = "1.0000"
@@ -1249,39 +1242,38 @@ def write_Kpn_WATFLOOD(path, basinName, stackPI, binaryPI):
 
     # Creating the header within a single string
     header = f"""########################################
-:FileType r2c ASCII EnSim 1.0
+:FileType r2c  ASCII  EnSim 1.0
 #
-:DataType          {headerInfo["DataType"]}
+# DataType               {headerInfo["DataType"]}
 #
-:Application       EnSimHydrologic
-:Version           1.0
-:WrittenBy         {headerInfo["WrittenBy"]}
-:CreationDate      {headerInfo["CreationDate"]}
+:Application             EnSimHydrologic
+:Version                 1.0
+:WrittenBy          {headerInfo["WrittenBy"]}
+:CreationDate         {headerInfo["CreationDate"]}
 #
 #---------------------------------------
 #
-:Name               {headerInfo["Name"]}
+:Name          {headerInfo["Name"]}
 #
 :Projection         {headerInfo["Projection"]}
-:Ellipsoid          {headerInfo["Ellipsoid"]}
+:Ellipsoid         {headerInfo["Ellipsoid"]}
 #
-:xOrigin            {headerInfo["xOrigin"]}
-:yOrigin            {headerInfo["yOrigin"]}
+:xOrigin         {headerInfo["xOrigin"]}
+:yOrigin         {headerInfo["yOrigin"]}
 #
-:SourceFile         {headerInfo["SourceFileName"]}
+:SourceFile                   {headerInfo["SourceFileName"]}
 #
-:AttributeName1     {headerInfo["AtributeName"]}
+:AttributeName 1    {headerInfo["AtributeName"]}
 :AttributeUnits     {headerInfo["Units"]}
 #
-:xCount             {headerInfo["xCount"]}
-:yCount             {headerInfo["yCount"]}
-:xDelta             {headerInfo["xDelta"]}
-:yDelta             {headerInfo["yDelta"]}
+:xCount         {headerInfo["xCount"]}
+:yCount         {headerInfo["yCount"]}
+:xDelta         {headerInfo["xDelta"]}
+:yDelta         {headerInfo["yDelta"]}
 #
-:UnitConversion     {headerInfo["UnitConversion"]}
+:UnitConversion               {headerInfo["UnitConversion"]}
 #
-:endHeader
-"""
+:endHeader"""
 
     
     # Change format of output from a cell for each grid to a cell for each month in entire grid
@@ -1304,7 +1296,7 @@ def write_Kpn_WATFLOOD(path, basinName, stackPI, binaryPI):
         else:
             # Grab the month from meanO18_allGrids
             meanO18_month = meanO18_allGrids[m, :]
-            yCount_array = range(1,numGrids+2, int(headerInfo["yCount"])) # CHECK TO SEE IF INDEXING IS CORRECT
+            yCount_array = range(0,numGrids+1, int(headerInfo["yCount"])) # CHECK TO SEE IF INDEXING IS CORRECT
 
         for j in range(int(headerInfo['xCount'])):
             if binaryPI == 1:
@@ -1312,6 +1304,22 @@ def write_Kpn_WATFLOOD(path, basinName, stackPI, binaryPI):
                 pass
             else:
                 meanO18_Gridded[m][:,j] = meanO18_month[yCount_array[j]:yCount_array[j+1]]
+
+    # Extract the years from the stackPI
+    years = set(stackPI[0][:, 1].astype(int))
+
+    # Now to write the data into separate files if they chose a yearly output #WILL NOT DO STATS ONE YET
+    if userDecision == 'y':
+        for i, year in enumerate(years):
+            with open(path + f"\\isoP\\{year}01_drnTEST.r2c", 'w') as file:
+                file.write(header)
+                # Cycle through the months and write the data
+                for month in range(1,13):
+                    monthData = np.flipud(meanO18_Gridded[i*12 + month - 1])
+                    file.write(f"\n:Frame        {month}        {month}    \"{year}/{month}/1 1:00:00.000\"\n")
+                    for row in monthData:
+                        file.write("  ".join(['{:.2f}'.format(item) for item in row]) + "\n")
+                    file.write(":EndFrame")
 
 def write_Kpn_coords(stackPI, path, basinName):
     WFcoords = np.genfromtxt(path + f"\\isoP\\{basinName}_coords.csv", delimiter = ',')
@@ -1334,7 +1342,7 @@ def write_Kpn_coords(stackPI, path, basinName):
 def download_NARR_data():
     ### First we will create the folder to contain the climate variables
     try:
-        mkdir("ClimateVariables")
+        os.mkdir("ClimateVariables")
     except FileExistsError:
         print("The ClimateVariables folder already exists, please delete or move it and attempt again!")
 
@@ -1359,9 +1367,9 @@ def isoP_WATFLOOD(cwd):
     #basinName = input("\nPlease enter the name of the basin: ")
     basinName = "Odei"
     #startYear = int(input("\nPlease enter the start year wanted: "))
-    startYear = 2001
+    startYear = 2000
     #endYear = int(input("\nPlease enter the end year wanted: "))
-    endYear = 2005
+    endYear = 2003
     print("\n")
 
     WFcoords = readSHD_File(path, basinName)
@@ -1456,8 +1464,8 @@ def main():
 
     print("""WARNING: The python version is still in development. As of this moment it cannot write WATFLOOD files.
           It can only write the coordinates file. Please select option 4 to run isoP without WATFLOOD. 
-          Currently the program cannot not preform the statistics, so when asked if you would like to run the PI please select no.\n""")
-    cwd = getcwd() # For openning files within the isoP folder and thus removing complications with file paths
+          Currently the program cannot not perform the statistics, so when asked if you would like to run the PI please select no.\n""")
+    cwd = os.getcwd() # For openning files within the isoP folder and thus removing complications with file paths
     CLI_menu(cwd)
     
     
