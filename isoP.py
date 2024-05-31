@@ -7,7 +7,7 @@ import math
 import os
 import requests
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 def readSHD_File(path, basinName):
     # Converts file into a line by line list
@@ -1320,6 +1320,27 @@ def write_Kpn_WATFLOOD(path, basinName, stackPI, binaryPI):
                     for row in monthData:
                         file.write("  ".join(['{:.2f}'.format(item) for item in row]) + "\n")
                     file.write(":EndFrame")
+    elif userDecision == 'm':
+        for i, year in enumerate(years):
+            for month in range(1,13):
+                with open(path + f"\\isoP\\{year}{str(month).zfill(2)}01_drnTEST.r2c", 'w') as file:
+                    file.write(header)
+                    monthData = np.flipud(meanO18_Gridded[i*12 + month - 1])
+                    
+                    # Monthly data for the first day of the month at 1:00:00.000
+                    file.write(f"\n:Frame        {month}        {month}    \"{year}/{month}/1 1:00:00.000\"\n")
+                    for row in monthData:
+                        file.write("  ".join(['{:.2f}'.format(item) for item in row]) + "\n")
+                    file.write(":EndFrame")
+                    
+                    # Monthly data for the last day of the month at 24:00:00.000
+                    last_day = datetime(year, month, 1).replace(day=1) - timedelta(days=1)
+                    file.write(f"\n:Frame        {month}        {month}    \"{year}/{month}/{last_day.day} 24:00:00.000\"\n")
+                    for row in monthData:
+                        file.write("  ".join(['{:.2f}'.format(item) for item in row]) + "\n")
+                    file.write(":EndFrame")
+    else:
+        print("Invalid input, please put either 'Y' or 'M'")
 
 def write_Kpn_coords(stackPI, path, basinName):
     WFcoords = np.genfromtxt(path + f"\\isoP\\{basinName}_coords.csv", delimiter = ',')
@@ -1363,7 +1384,7 @@ def download_NARR_data():
 
 def isoP_WATFLOOD(cwd):
     #path = input("\nPlease enter the full path to the parent folder containing the isoP folder:\n")
-    path = r"C:\Users\jaxgr\OneDrive - University of Calgary\University\UC-HAL\Programming\New isoPy\Odei"
+    path = r"C:\Users\jaxton.gray\OneDrive - University of Calgary\University\UC-HAL\Programming\New isoPy\Odei"
     #basinName = input("\nPlease enter the name of the basin: ")
     basinName = "Odei"
     #startYear = int(input("\nPlease enter the start year wanted: "))
