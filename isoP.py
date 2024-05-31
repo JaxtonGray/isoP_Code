@@ -1426,7 +1426,27 @@ def userProfile():
     # To start we will begin by checking to see if there is already a profile
     if os.path.exists("userProfile.txt"):
         # If it exists then we will extract the information into a dictionary
-        pass
+        with open("userProfile.txt", 'r') as f:
+            userProfile = {}
+            for line in f:
+                key, value = line.split("=")
+                key = key.strip()
+                value = value.strip()
+                userProfile[key] = value
+        
+        # Now we will ask the user if they would like to use the existing profile
+        print(f"""Hello {userProfile['userName']}!
+Would you like to continue working with the {userProfile['basinName']} basin?
+Located at {userProfile['basinPath']}
+Years: {userProfile['startYear']} - {userProfile['endYear']}""")
+        continueProfile = input("Would you like to continue with this profile? Y/N: ").lower()
+
+        # If they would like to continue then we will return the userProfile dictionary if not then we will skip the userProfile
+        if continueProfile == 'y':
+            return userProfile
+        else:
+            print("WARNING: The current profile will be overwritten after making new selections.")
+            return None
     else:
         # If it doesn't exist then we will create a new profile
         pass
@@ -1493,7 +1513,8 @@ def main():
     print("""WARNING: The python version is still in development. Currently the program cannot not perform the statistics, 
           so when asked if you would like to run the PI please select no.\n""")
     cwd = os.getcwd() # For openning files within the isoP folder and thus removing complications with file paths
-    CLI_menu(cwd)
-    
+    #CLI_menu(cwd)
+    user = userProfile()
+    print(user)
     
 main()
