@@ -1382,11 +1382,13 @@ def download_NARR_data():
         print(str(round(count/len(varFile)*100, 2)) + "% complete!")
         count += 1
 
-def isoP_WATFLOOD(cwd):
-    path = input("\nPlease enter the full path to the parent folder containing the isoP folder:\n")
-    basinName = input("\nPlease enter the name of the basin: ")
-    startYear = int(input("\nPlease enter the start year wanted: "))
-    endYear = int(input("\nPlease enter the end year wanted: "))
+def isoP_WATFLOOD(cwd, userProfile = None):
+    if userProfile == None:    
+        path = input("\nPlease enter the full path to the parent folder containing the isoP folder:\n")
+        basinName = input("\nPlease enter the name of the basin: ")
+        startYear = int(input("\nPlease enter the start year wanted: "))
+        endYear = int(input("\nPlease enter the end year wanted: "))
+    
     print("\n")
 
     WFcoords = readSHD_File(path, basinName)
@@ -1419,12 +1421,14 @@ def isoP_coords(cwd):
     write_Kpn_coords(stackPI, path, basinName)
     print("isoP has been completed!")
 
-def userProfile():
+def userProfile(userInfo = None):
     #  This function will allow the user to create a profile for the program that will reduce the amount of inputs required
     #  The profile will be saved as a text file that can be loaded and edited at a later date if so chosen.
     
+    # Creating a check to determine if a user profile was to be created with in the session of isoP
+    sessionProfile = False # Will be used to determine if the user would like to create a profile for the session
     # To start we will begin by checking to see if there is already a profile
-    if os.path.exists("userProfile.txt"):
+    if os.path.exists("userProfile.txt") and not sessionProfile:
         # If it exists then we will extract the information into a dictionary
         with open("userProfile.txt", 'r') as f:
             userProfile = {}
@@ -1445,11 +1449,24 @@ Years: {userProfile['startYear']} - {userProfile['endYear']}""")
         if continueProfile == 'y':
             return userProfile
         else:
-            print("WARNING: The current profile will be overwritten after making new selections.")
+            print("WARNING: CURRENT PROFILE WILL BE OVERWRITTEN.")
             return None
+    elif not os.path.exists("userProfile.txt") and sessionProfile:
+        with open("userProfile.txt", 'w') as f:
+            f.write("userName = " + userInfo['Name'] + "\n")
+            f.write("basinName = " + userInfo['basinName'] + "\n")
+            f.write("basinPath = " + userInfo['basinPath'] + "\n")
+            f.write("startYear = " + userInfo['startYear'] + "\n")
+            f.write("endYear = " + userInfo['endYear'] + "\n")
+            f.write("ProfileCreated = " + datetime.now().strftime("%Y/%m/%d %H:%M:%S") + "\n")
+        sessionProfile = False
+    
     else:
         # If it doesn't exist then we will create a new profile
-        pass
+        print("No user profile found, one will be created based off your choices in this session of isoP.")
+        userInfo['Name'] = input("Please enter your name: ")
+        sessionProfile = True
+
 def CLI_menu(cwd):
     inMenu = True
     while inMenu:
