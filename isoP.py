@@ -1419,6 +1419,17 @@ def isoP_coords(cwd):
     write_Kpn_coords(stackPI, path, basinName)
     print("isoP has been completed!")
 
+def userProfile():
+    #  This function will allow the user to create a profile for the program that will reduce the amount of inputs required
+    #  The profile will be saved as a text file that can be loaded and edited at a later date if so chosen.
+    
+    # To start we will begin by checking to see if there is already a profile
+    if os.path.exists("userProfile.txt"):
+        # If it exists then we will extract the information into a dictionary
+        pass
+    else:
+        # If it doesn't exist then we will create a new profile
+        pass
 def CLI_menu(cwd):
     inMenu = True
     while inMenu:
