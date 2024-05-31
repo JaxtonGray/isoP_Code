@@ -47,7 +47,7 @@ The entirety of the program is run through the command line. You can run the pro
 ```bash
 python isoP.py
 ```
-You will be told by the program that you need to download the NARR climate variables first, to do so please select the correct option. This will take sometime as those files are quite large. Once those are downloaded you can then select the option that you want from the main menu. This does not need to be done everytime, but they do need to be updated every now and then. This goes for the teleconnection files as well. However the teleconnection files will have to be done manually as of now.
+NOTE: You will be told by the program that you need to download the NARR climate variables first, to do so please select the correct option. This will take sometime as those files are quite large. Once those are downloaded you can then select the option that you want from the main menu. This does not need to be done everytime, but they do need to be updated every now and then. This goes for the teleconnection files as well. However the teleconnection files will have to be done manually as of now.
 
 The program will load up and you can select your options from there. The program will prompt you for the following:
 * The path to the main basin directory
