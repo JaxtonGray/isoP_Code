@@ -1383,14 +1383,10 @@ def download_NARR_data():
         count += 1
 
 def isoP_WATFLOOD(cwd):
-    #path = input("\nPlease enter the full path to the parent folder containing the isoP folder:\n")
-    path = r"C:\Users\jaxton.gray\OneDrive - University of Calgary\University\UC-HAL\Programming\New isoPy\Odei"
-    #basinName = input("\nPlease enter the name of the basin: ")
-    basinName = "Odei"
-    #startYear = int(input("\nPlease enter the start year wanted: "))
-    startYear = 2000
-    #endYear = int(input("\nPlease enter the end year wanted: "))
-    endYear = 2003
+    path = input("\nPlease enter the full path to the parent folder containing the isoP folder:\n")
+    basinName = input("\nPlease enter the name of the basin: ")
+    startYear = int(input("\nPlease enter the start year wanted: "))
+    endYear = int(input("\nPlease enter the end year wanted: "))
     print("\n")
 
     WFcoords = readSHD_File(path, basinName)
@@ -1483,9 +1479,8 @@ def main():
     print("Updated by T. Holmes June 2017 for running isoP without WATFLOOD.")
     print("Converted to Python by J. Gray August 2023.")
 
-    print("""WARNING: The python version is still in development. As of this moment it cannot write WATFLOOD files.
-          It can only write the coordinates file. Please select option 4 to run isoP without WATFLOOD. 
-          Currently the program cannot not perform the statistics, so when asked if you would like to run the PI please select no.\n""")
+    print("""WARNING: The python version is still in development. Currently the program cannot not perform the statistics, 
+          so when asked if you would like to run the PI please select no.\n""")
     cwd = os.getcwd() # For openning files within the isoP folder and thus removing complications with file paths
     CLI_menu(cwd)
     
