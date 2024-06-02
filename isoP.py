@@ -1383,13 +1383,25 @@ def download_NARR_data():
         count += 1
 
 def isoP_WATFLOOD(cwd, userProfile = None):
-    if userProfile == None:    
+    if userProfile == None:
+        userInfo = {}
         path = input("\nPlease enter the full path to the parent folder containing the isoP folder:\n")
+        userInfo['basinPath'] = path
         basinName = input("\nPlease enter the name of the basin: ")
+        userInfo['basinName'] = basinName
         startYear = int(input("\nPlease enter the start year wanted: "))
+        userInfo['startYear'] = startYear
         endYear = int(input("\nPlease enter the end year wanted: "))
-    
-    print("\n")
+        userInfo['endYear'] = endYear
+        writeUser_Profile(userInfo)
+        print("\n")
+
+    else:
+        path = userProfile['basinPath']
+        basinName = userProfile['basinName']
+        startYear = int(userProfile['startYear'])
+        endYear = int(userProfile['endYear'])
+        print("\n")
 
     WFcoords = readSHD_File(path, basinName)
     output, pathNARR = extract_NARR_timeseries(cwd, path, basinName)
@@ -1401,12 +1413,26 @@ def isoP_WATFLOOD(cwd, userProfile = None):
     write_Kpn_WATFLOOD(path, basinName, stackPI, binaryPI)
     print("isoP has been completed!")
 
-def isoP_coords(cwd):
-    path = input("\nPlease enter the full path to the parent folder containing the isoP folder:\n")
-    basinName = input("\nPlease enter the name of the basin: ")
-    startYear = int(input("\nPlease enter the start year wanted: "))
-    endYear = int(input("\nPlease enter the end year wanted: "))
-    print("\n")
+def isoP_coords(cwd, userProfile = None):
+    if userProfile == None:
+        userInfo = {}
+        path = input("\nPlease enter the full path to the parent folder containing the isoP folder:\n")
+        userInfo['basinPath'] = path
+        basinName = input("\nPlease enter the name of the basin: ")
+        userInfo['basinName'] = basinName
+        startYear = int(input("\nPlease enter the start year wanted: "))
+        userInfo['startYear'] = startYear
+        endYear = int(input("\nPlease enter the end year wanted: "))
+        userInfo['endYear'] = endYear
+        writeUser_Profile(userInfo)
+        print("\n")
+
+    else:
+        path = userProfile['basinPath']
+        basinName = userProfile['basinName']
+        startYear = int(userProfile['startYear'])
+        endYear = int(userProfile['endYear'])
+        print("\n")   
 
     # Create the path to the coordinates file
     pathCoords = path + f"\\isoP\\{basinName}_coords.csv"
@@ -1421,54 +1447,41 @@ def isoP_coords(cwd):
     write_Kpn_coords(stackPI, path, basinName)
     print("isoP has been completed!")
 
-def userProfile(userInfo = None):
-    #  This function will allow the user to create a profile for the program that will reduce the amount of inputs required
-    #  The profile will be saved as a text file that can be loaded and edited at a later date if so chosen.
-    
-    # Creating a check to determine if a user profile was to be created with in the session of isoP
-    sessionProfile = False # Will be used to determine if the user would like to create a profile for the session
-    # To start we will begin by checking to see if there is already a profile
-    if os.path.exists("userProfile.txt") and not sessionProfile:
-        # If it exists then we will extract the information into a dictionary
-        with open("userProfile.txt", 'r') as f:
-            userProfile = {}
-            for line in f:
-                key, value = line.split("=")
-                key = key.strip()
-                value = value.strip()
-                userProfile[key] = value
-        
-        # Now we will ask the user if they would like to use the existing profile
-        print(f"""Hello {userProfile['userName']}!
-Would you like to continue working with the {userProfile['basinName']} basin?
-Located at {userProfile['basinPath']}
-Years: {userProfile['startYear']} - {userProfile['endYear']}""")
-        continueProfile = input("Would you like to continue with this profile? Y/N: ").lower()
+# The following two functions are for reading and writing the user profile. This is by far the least optimal way to do this
+# but It works so I'm not going to change it. 
+def readUser_Profile():
+    # If the user has a profile file then read it in
+    userProfile = {}
+    with open("userProfile.txt", 'r') as f:
+        for line in f:
+            line = line.split(" = ")
+            userProfile[line[0]] = line[1].strip()
+    return userProfile
 
-        # If they would like to continue then we will return the userProfile dictionary if not then we will skip the userProfile
-        if continueProfile == 'y':
-            return userProfile
-        else:
-            print("WARNING: CURRENT PROFILE WILL BE OVERWRITTEN.")
-            return None
-    elif not os.path.exists("userProfile.txt") and sessionProfile:
-        with open("userProfile.txt", 'w') as f:
-            f.write("userName = " + userInfo['Name'] + "\n")
-            f.write("basinName = " + userInfo['basinName'] + "\n")
-            f.write("basinPath = " + userInfo['basinPath'] + "\n")
-            f.write("startYear = " + userInfo['startYear'] + "\n")
-            f.write("endYear = " + userInfo['endYear'] + "\n")
-            f.write("ProfileCreated = " + datetime.now().strftime("%Y/%m/%d %H:%M:%S") + "\n")
-        sessionProfile = False
-    
+def writeUser_Profile(userInfo):
+    # Save their profile then write it to a file
+    if userInfo == None:
+        print("""
+            So the program detected that there was no userProfile.txt file and so it tried to make one. However, it did not save the information.
+            I do not know why, and god help you.""")
     else:
-        # If it doesn't exist then we will create a new profile
-        print("No user profile found, one will be created based off your choices in this session of isoP.")
-        userInfo['Name'] = input("Please enter your name: ")
-        sessionProfile = True
+        userInfo["userName"] = input("\nPlease enter your name to save the profile: ")
+        with open("userProfile.txt", 'w') as f:
+            f.write(f"userName = " + userInfo["userName"] + "\n")
+            f.write(f"basinPath = " + userInfo["basinPath"] + "\n")
+            f.write(f"basinName = " + userInfo["basinName"] + "\n")
+            f.write(f"startYear = " + str(userInfo["startYear"]) + "\n")
+            f.write(f"endYear = " + str(userInfo["endYear"]) + "\n")
+            f.write(f"createdOn = " + datetime.now().strftime("%Y/%m/%d") + "\n")
+        print("User profile has been saved! Now you will not have to enter the information again.")
 
 def CLI_menu(cwd):
     inMenu = True
+    if os.path.exists("userProfile.txt"):
+        userProfile = readUser_Profile()
+    else:
+        userProfile = None
+
     while inMenu:
         print("\nPlease select an option from the following list:")
         print("------------------------------------------------")
@@ -1478,8 +1491,7 @@ def CLI_menu(cwd):
         print("4. Run isoP off of coordinates file only - No WATFLOOD output")
         print("5. Exit")
         userChoice = input("Enter the number of the option you would like to select: ")
-        print("\n")
-
+    
         if userChoice == '1':
             print("Instructions on how to run isoP!")
             print("You must have a directory containing the following folders:")
@@ -1501,10 +1513,10 @@ def CLI_menu(cwd):
             print("NARR data has been downloaded!")
         
         elif userChoice == '3':
-            isoP_WATFLOOD(cwd)
+            isoP_WATFLOOD(cwd, userProfile)
         
         elif userChoice == '4':
-            isoP_coords(cwd)
+            isoP_coords(cwd, userProfile)
         
         elif userChoice == '5':
             print("Exiting the program.")
@@ -1512,7 +1524,7 @@ def CLI_menu(cwd):
         
         else:
             print("Invalid input please try again.")
-
+    
 
 def main():
     # Currently just running the isoP function but will open the CLI menu when ready
@@ -1530,8 +1542,7 @@ def main():
     print("""WARNING: The python version is still in development. Currently the program cannot not perform the statistics, 
           so when asked if you would like to run the PI please select no.\n""")
     cwd = os.getcwd() # For openning files within the isoP folder and thus removing complications with file paths
-    #CLI_menu(cwd)
-    user = userProfile()
-    print(user)
+    CLI_menu(cwd)
+    
     
 main()
