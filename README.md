@@ -55,6 +55,12 @@ The program will load up and you can select your options from there. The program
 * Start year
 * End year
 
+## User Profile
+The program is equipped with a user profile function that will store the above information into a textfile along with your name and creation date. This is so if you are running the program multiple times you do not have to keep typing in the same information. However, if you would like to change the information you can:
+* Delete the user profile file
+* Rename the user profile file
+* Change the information in the user profile file
+
 Keep an eye out for more prompts that may appear later.
 
 **Note** about the following prompt: 
