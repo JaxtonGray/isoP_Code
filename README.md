@@ -21,9 +21,9 @@ or you can install all the packages at once by typing the following:
 ```
 pip install -r requirements.txt
 ```
-NOTE: The JSON package is included in the standard library so you do not need to install it. If you try running the program and it says the package is not installled it may have been due to improper installation of python. You may need to reinstall python and ensure that you have the correct version of pip installed.
+NOTE: The JSON and OS library are included in the standard library so you do not need to install it. If you try running the program and it says the package they are not installled it may have been due to improper installation of python. You may need to reinstall python and ensure that you have the correct version of pip installed.
 
-Afterwards you will need to clone this repository to your system. You must place the folder in the main basin directory. This is because you will need to enter the path to the main basin directory when you run the program.
+Afterwards you will need to clone this repository to your system. 
 
 ## How to use
 ### Downloading the program

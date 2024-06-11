@@ -1140,6 +1140,7 @@ def simulate_Kpn(dataAllKPN_seas, dataStats, cwd):
     print("Simulating monthly 18Oppt!")
 
     ypred_std_KPN = [[[] for j  in range(numIndex)] for i in range(numSeas)]
+    
     if checkPI == 'y': # Currently skipping this section will develop at a later point
         # numR is the number of iterations (typically 1000 is enough) and alpha is the significance level
         # these can be changed if required
