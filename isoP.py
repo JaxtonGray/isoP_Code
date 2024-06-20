@@ -1383,6 +1383,24 @@ def download_NARR_data():
         print(str(round(count/len(varFile)*100, 2)) + "% complete!")
         count += 1
 
+def download_Teleconnection_data():
+    # This function will download the tele data from the NOAA website and format it into a csv file saved 
+    # in the Tele folder. This will make it easier to update the data in the future.
+    #url = "https://psl.noaa.gov/data/climateindices/list/"
+    url = "https://psl.noaa.gov/data/correlation/"
+    indices = pd.read_csv(r"Tele/index_files.csv", header=None)
+    indicesList = indices[0].tolist()
+
+    count = 1
+    for index in indicesList:
+        r = requests.get(url + index + ".data")
+        with open(r"Tele/" + index + "TEST.csv", "wb") as code:
+            code.write(r.content)
+        print(index + " has been downloaded!")
+        print(str(round(count/len(indicesList)*100, 2)) + "% complete!")
+        count += 1
+
+
 def isoP_WATFLOOD(cwd, userProfile = None):
     if userProfile == None:
         userInfo = {}
@@ -1546,4 +1564,5 @@ def main():
     CLI_menu(cwd)
     
     
-main()
+#main()
+download_Teleconnection_data()
