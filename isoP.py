@@ -1390,6 +1390,7 @@ def download_Teleconnection_data():
     url = "https://psl.noaa.gov/data/correlation/"
     indices = pd.read_csv(r"Tele/index_files.csv", header=None)
     indicesList = indices[0].tolist()
+    indicesList = [x.lower() for x in indicesList]
 
     count = 1
     for index in indicesList:
