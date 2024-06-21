@@ -1395,8 +1395,19 @@ def download_Teleconnection_data():
     count = 1
     for index in indicesList:
         r = requests.get(url + index + ".data")
-        with open(r"Tele/" + index + "TEST.csv", "wb") as code:
-            code.write(r.content)
+        indexContent = r.text.split("\n")
+        data = pd.DataFrame(columns=["Year", "Month", index.upper()])
+        for i, line in enumerate(indexContent):
+            values = line.split()
+            if i == 0:
+                startYear = int(values[0])
+                endYear = int(values[1])
+            elif int(values[0]) >= startYear and int(values[0]) <= endYear:
+                for j in range(1, len(values)):
+                    row = pd.DataFrame({"Year": int(values[0]), "Month": j, index.upper(): float(values[j])}, index = [0])
+                    data = pd.concat([data, row], ignore_index=True)
+            
+
         print(index + " has been downloaded!")
         print(str(round(count/len(indicesList)*100, 2)) + "% complete!")
         count += 1
