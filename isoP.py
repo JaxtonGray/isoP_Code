@@ -1372,7 +1372,7 @@ def download_NARR_data():
     variables_to_download = pd.read_csv(r"NARR\NARR_var_names.csv", header=None)
     varFile = variables_to_download[0].tolist()
 
-    ### Now we will cycle through each variable and download it from the 
+    ### Now we will cycle through each variable and download it from the NOAA website
     count = 1
     for var in varFile:
         url = r"https://downloads.psl.noaa.gov/Datasets/NARR/Monthlies/monolevel/" + var
@@ -1392,26 +1392,7 @@ def download_Teleconnection_data():
     indicesList = indices[0].tolist()
     indicesList = [x.lower() for x in indicesList]
 
-    count = 1
-    for index in indicesList:
-        r = requests.get(url + index + ".data")
-        indexContent = r.text.split("\n")
-        data = pd.DataFrame(columns=["Year", "Month", index.upper()])
-        for i, line in enumerate(indexContent):
-            values = line.split()
-            if i == 0:
-                startYear = int(values[0])
-                endYear = int(values[1])
-            elif int(values[0]) >= startYear and int(values[0]) <= endYear:
-                for j in range(1, len(values)):
-                    row = pd.DataFrame({"Year": int(values[0]), "Month": j, index.upper(): float(values[j])}, index = [0])
-                    data = pd.concat([data, row], ignore_index=True)
-            
-
-        print(index + " has been downloaded!")
-        print(str(round(count/len(indicesList)*100, 2)) + "% complete!")
-        count += 1
-
+    
 
 def isoP_WATFLOOD(cwd, userProfile = None):
     if userProfile == None:
